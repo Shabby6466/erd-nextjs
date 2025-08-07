@@ -1,5 +1,5 @@
 import apiClient from "./client"
-import { Application, ApplicationFilters } from "../stores/application-store"
+import { Application } from "../types"
 
 export interface CreateApplicationData {
   citizen_id: string
@@ -12,32 +12,28 @@ export interface CreateApplicationData {
   profession: string
   pakistan_city: string
   pakistan_address: string
-  height: string
+  birth_country: string
+  birth_city: string
+  height: number
   color_of_eyes: string
   color_of_hair: string
   departure_date: string
   transport_mode: string
+  investor: boolean
+  requested_by: string
+  reason_for_deport: string
+  amount: number
+  currency: string
+  is_fia_blacklist: boolean
+  status: string
 }
 
-export interface PaginatedResponse<T> {
-  data: T[]
-  page: number
-  limit: number
-  total: number
-  totalPages: number
-}
 
 export const applicationAPI = {
   // Get all applications with filters
-  getAll: async (filters?: ApplicationFilters): Promise<PaginatedResponse<Application>> => {
-    const params = new URLSearchParams()
-    if (filters?.status) params.append("status", filters.status)
-    if (filters?.search) params.append("search", filters.search)
-    if (filters?.page) params.append("page", filters.page.toString())
-    if (filters?.limit) params.append("limit", filters.limit.toString())
-
-    const response = await apiClient.get(`/applications?${params.toString()}`)
-    return response.data
+  getAll: async (): Promise<{ data: Application[] }> => {
+    const response = await apiClient.get(`/applications`)
+    return { data: response.data || [] }
   },
 
   // Get application by ID
@@ -78,6 +74,38 @@ export const applicationAPI = {
   // Get dashboard statistics
   getDashboardStats: async (role: string) => {
     const response = await apiClient.get(`/dashboard/${role}/stats`)
+    return response.data
+  },
+
+  // Ministry specific actions
+  ministryApprove: async (id: string, remarks?: string): Promise<Application> => {
+    const response = await apiClient.post(`/applications/${id}/ministry-approve`, { remarks })
+    return response.data
+  },
+
+  ministryReject: async (id: string, remarks: string): Promise<Application> => {
+    const response = await apiClient.post(`/applications/${id}/ministry-reject`, { remarks })
+    return response.data
+  },
+
+  blacklist: async (id: string, remarks: string): Promise<Application> => {
+    const response = await apiClient.post(`/applications/${id}/blacklist`, { remarks })
+    return response.data
+  },
+
+  sendToAgency: async (id: string, region: string): Promise<Application> => {
+    const response = await apiClient.post(`/applications/${id}/send-to-agency`, { region })
+    return response.data
+  },
+
+  // Agency specific actions
+  agencyApprove: async (id: string, remarks?: string): Promise<Application> => {
+    const response = await apiClient.post(`/applications/${id}/agency-approve`, { remarks })
+    return response.data
+  },
+
+  agencyReject: async (id: string, remarks: string): Promise<Application> => {
+    const response = await apiClient.post(`/applications/${id}/agency-reject`, { remarks })
     return response.data
   },
 }

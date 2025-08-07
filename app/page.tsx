@@ -8,6 +8,8 @@ export default function HomePage() {
   const router = useRouter()
   const { isAuthenticated, user } = useAuthStore()
 
+  console.log(isAuthenticated, user)
+
   useEffect(() => {
     if (isAuthenticated && user) {
       // Redirect to appropriate dashboard based on role
@@ -22,7 +24,7 @@ export default function HomePage() {
           router.push("/ministry")
           break
         case "MISSION_OPERATOR":
-          router.push("/hq")
+          router.push("/mission")
           break
         default:
           router.push("/admin")

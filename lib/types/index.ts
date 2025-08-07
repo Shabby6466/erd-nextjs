@@ -3,8 +3,10 @@ export interface User {
   email: string
   firstName: string
   lastName: string
+  name: string
   role: UserRole
   agency?: string
+  region?: string
   createdAt: string
   updatedAt: string
 }
@@ -34,15 +36,43 @@ export interface Application {
   submittedBy?: string
   reviewedBy?: string
   remarks?: string
+  region?: Region
+  assignedAgency?: string
+  attachments?: ApplicationAttachment[]
+  approvalHistory?: ApprovalHistory[]
+}
+
+export interface ApplicationAttachment {
+  id: string
+  applicationId: string
+  fileName: string
+  fileUrl: string
+  fileType: string
+  uploadedBy: string
+  uploadedAt: string
+}
+
+export interface ApprovalHistory {
+  id: string
+  applicationId: string
+  action: 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'SENT_TO_AGENCY' | 'SENT_TO_MINISTRY' | 'BLACKLISTED'
+  remarks?: string
+  performedBy: string
+  performedAt: string
 }
 
 export type ApplicationStatus = 
   | 'DRAFT' 
   | 'SUBMITTED' 
   | 'UNDER_REVIEW' 
+  | 'AGENCY_REVIEW'
+  | 'MINISTRY_REVIEW'
   | 'APPROVED' 
   | 'REJECTED' 
   | 'COMPLETED'
+  | 'BLACKLISTED'
+
+export type Region = 'PUNJAB' | 'SINDH' | 'KPK' | 'BALOCHISTAN' | 'GILGIT_BALTISTAN' | 'AJK'
 
 export interface ApplicationFilters {
   status?: ApplicationStatus

@@ -1,19 +1,24 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { authAPI } from "../api/auth"
 
 export interface User {
   id: string
   email: string
   name: string
   role: "ADMIN" | "MINISTRY" | "AGENCY" | "MISSION_OPERATOR"
+  state?: string
+  agency?: string
 }
 
 interface AuthState {
   user: User | null
   token: string | null
   isAuthenticated: boolean
+  isLoading: boolean
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  logout: () => void
+  logout: () => Promise<void>
+  verifyToken: () => Promise<void>
   setUser: (user: User) => void
   setToken: (token: string) => void
 }
@@ -24,38 +29,58 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
+      isLoading: true,
       login: async (email: string, password: string) => {
         try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ email, password }),
-          })
-
-          if (!response.ok) {
-            const error = await response.json()
-            return { success: false, error: error.message || "Login failed" }
-          }
-
-          const data = await response.json()
+          const data = await authAPI.login({ email, password })
           set({
             user: data.user,
             token: data.token,
             isAuthenticated: true,
           })
           return { success: true }
-        } catch (error) {
-          return { success: false, error: "Network error" }
+        } catch (err: unknown) {
+          const message = (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error || (err as { message?: string }).message || "Login failed"
+          return { success: false, error: message }
         }
       },
-      logout: () => {
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-        })
+      logout: async () => {
+        try {
+          await authAPI.logout()
+        } catch (error) {
+          console.error('Logout error:', error)
+        } finally {
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+          })
+        }
+      },
+      verifyToken: async () => {
+        const { token } = get()
+        if (!token) {
+          set({ isLoading: false })
+          return
+        }
+
+        set({ isLoading: true })
+        try {
+          const data = await authAPI.verify()
+          set({
+            user: data.user,
+            isAuthenticated: true,
+            isLoading: false
+          })
+        } catch (error) {
+          console.error('Token verification error:', error)
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false
+          })
+        }
       },
       setUser: (user: User) => {
         set({ user })
@@ -67,6 +92,19 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "auth-storage",
       partialize: (state) => ({ user: state.user, token: state.token }),
+      onRehydrateStorage: () => {
+        // Called right after rehydration completes
+        return () => {
+          const { token, verifyToken } = useAuthStore.getState()
+          if (token) {
+            // Verify will set user and clear loading
+            verifyToken()
+          } else {
+            // No token, stop loading
+            useAuthStore.setState({ isLoading: false, isAuthenticated: false, user: null })
+          }
+        }
+      },
     }
   )
 )

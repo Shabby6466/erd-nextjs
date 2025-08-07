@@ -3,15 +3,21 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, FileText, CheckCircle, XCircle } from "lucide-react"
+import { Users, FileText, CheckCircle, XCircle, Plus, UserPlus } from "lucide-react"
 import { ApplicationsTable } from "@/components/dashboard/ApplicationsTable"
-import { Application } from "@/lib/stores/application-store"
+import { UserManagementTable } from "@/components/admin/UserManagementTable"
+import { CreateUserModal } from "@/components/admin/CreateUserModal"
+import { Application } from "@/lib/types"
 import { applicationAPI } from "@/lib/api/applications"
 import { showNotification } from "@/lib/utils/notifications"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 export default function AdminDashboard() {
   const [applications, setApplications] = useState<Application[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'applications' | 'users'>('applications')
+  const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false)
+  const { logout } = useAuthStore()
   const [stats, setStats] = useState({
     total: 0,
     approved: 0,
@@ -51,8 +57,43 @@ export default function AdminDashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-gray-600">Manage Emergency Travel Document applications</p>
+            <p className="text-gray-600">Manage Emergency Travel Document applications and users</p>
           </div>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              onClick={async () => {
+                await logout()
+                window.location.href = '/login'
+              }}
+            >
+              Logout
+            </Button>
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('applications')}
+            className={`px-6 py-3 font-medium text-sm ${
+              activeTab === 'applications'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Applications
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-6 py-3 font-medium text-sm ${
+              activeTab === 'users'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            User Management
+          </button>
         </div>
 
         {/* Stats Cards */}
@@ -98,11 +139,35 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Applications Table */}
-        <ApplicationsTable
-          applications={applications}
-          isLoading={isLoading}
-          onRefresh={fetchApplications}
+        {/* Content based on active tab */}
+        {activeTab === 'applications' && (
+          <ApplicationsTable
+            applications={applications}
+            isLoading={isLoading}
+            onRefresh={fetchApplications}
+          />
+        )}
+
+        {activeTab === 'users' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">User Management</h2>
+              <Button
+                onClick={() => setIsCreateUserModalOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <UserPlus className="h-4 w-4" />
+                Create User
+              </Button>
+            </div>
+            <UserManagementTable />
+          </div>
+        )}
+
+        {/* Create User Modal */}
+        <CreateUserModal
+          open={isCreateUserModalOpen}
+          onOpenChange={setIsCreateUserModalOpen}
         />
       </div>
     </div>

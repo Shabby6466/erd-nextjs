@@ -12,6 +12,7 @@ import { showNotification } from "@/lib/utils/notifications"
 import { formatCNIC, validateCNIC } from "@/lib/utils/formatting"
 import { citizenSchema, type CitizenFormData } from "@/lib/validations/citizen"
 import { applicationAPI } from "@/lib/api/applications"
+import { nadraAPI } from "@/lib/api/nadra"
 
 export function CitizenForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -31,34 +32,37 @@ export function CitizenForm() {
       profession: "",
       pakistan_city: "",
       pakistan_address: "",
-      height: "",
+      birth_country: "",
+      birth_city: "",
+      height: 0,
       color_of_eyes: "",
       color_of_hair: "",
       departure_date: "",
       transport_mode: "",
+      investor: false,
+      requested_by: "",
+      reason_for_deport: "",
+      amount: 0,
+      currency: "",
+      is_fia_blacklist: false,
+      status: "DRAFT",
     },
   })
 
   const handleGetData = async () => {
     const citizenId = form.getValues("citizen_id")
-    if (!validateCNIC(citizenId)) {
-      showNotification.error("Please enter a valid CNIC")
+    if (!/^\d{12}$/.test(citizenId)) {
+      showNotification.error("Please enter a valid 12-digit citizen ID")
       return
     }
 
     setIsFetchingData(true)
     try {
-      // Simulate external API call
-      const response = await fetch(`/api/nadra?citizenId=${citizenId}`)
-      if (response.ok) {
-        const data = await response.json()
-        form.reset(data)
-        showNotification.success("Data fetched successfully")
-      } else {
-        showNotification.error("Failed to fetch data from NADRA")
-      }
-    } catch (error) {
-      showNotification.error("Error fetching data")
+      const data = await nadraAPI.getCitizenData(citizenId)
+      form.reset(data)
+      showNotification.success("Data fetched successfully")
+    } catch (error: any) {
+      showNotification.error(error.response?.data?.message || error.message || "Failed to fetch data from NADRA")
     } finally {
       setIsFetchingData(false)
     }
@@ -91,24 +95,20 @@ export function CitizenForm() {
           </CardHeader>
           <CardContent>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* CNIC Section */}
+              {/* Citizen ID Section */}
               <div className="flex items-center gap-4">
                 <div className="flex-1">
-                  <Label htmlFor="citizen_id">CNIC Number</Label>
+                  <Label htmlFor="citizen_id">Citizen ID</Label>
                   <Input
                     id="citizen_id"
-                    placeholder="Enter CNIC (e.g., 12345-1234567-1)"
+                    placeholder="Enter 12-digit citizen ID"
                     {...form.register("citizen_id")}
-                    onChange={(e) => {
-                      const formatted = formatCNIC(e.target.value)
-                      form.setValue("citizen_id", formatted)
-                    }}
                   />
                 </div>
                 <Button
                   type="button"
                   onClick={handleGetData}
-                  disabled={isFetchingData || !validateCNIC(form.watch("citizen_id"))}
+                  disabled={isFetchingData || !/^\d{12}$/.test(form.watch("citizen_id"))}
                   className="mt-6"
                 >
                   {isFetchingData ? "Fetching..." : "Get Data"}
@@ -143,8 +143,16 @@ export function CitizenForm() {
                 </div>
               </div>
 
-              {/* Address Information */}
+              {/* Address & Birth Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="birth_country">Birth Country</Label>
+                  <Input id="birth_country" {...form.register("birth_country")} />
+                </div>
+                <div>
+                  <Label htmlFor="birth_city">Birth City</Label>
+                  <Input id="birth_city" {...form.register("birth_city")} />
+                </div>
                 <div>
                   <Label htmlFor="pakistan_city">City</Label>
                   <Input id="pakistan_city" {...form.register("pakistan_city")} />
@@ -163,7 +171,7 @@ export function CitizenForm() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="height">Height</Label>
-                  <Input id="height" placeholder="e.g., 5'8&quot;" {...form.register("height")} />
+                  <Input id="height" type="number" step="0.01" placeholder="e.g., 5.9" {...form.register("height", { valueAsNumber: true })} />
                 </div>
                 <div>
                   <Label htmlFor="color_of_eyes">Eye Color</Label>
@@ -175,7 +183,7 @@ export function CitizenForm() {
                 </div>
               </div>
 
-              {/* Travel Information */}
+              {/* Travel & Request Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="departure_date">Departure Date</Label>
@@ -184,6 +192,34 @@ export function CitizenForm() {
                 <div>
                   <Label htmlFor="transport_mode">Transport Mode</Label>
                   <Input id="transport_mode" placeholder="e.g., Air, Road, Sea" {...form.register("transport_mode")} />
+                </div>
+                <div>
+                  <Label htmlFor="investor">Investor</Label>
+                  <Input id="investor" type="checkbox" {...form.register("investor")} />
+                </div>
+                <div>
+                  <Label htmlFor="requested_by">Requested By</Label>
+                  <Input id="requested_by" {...form.register("requested_by")} />
+                </div>
+                <div>
+                  <Label htmlFor="reason_for_deport">Reason for Deport</Label>
+                  <Input id="reason_for_deport" {...form.register("reason_for_deport")} />
+                </div>
+                <div>
+                  <Label htmlFor="amount">Amount</Label>
+                  <Input id="amount" type="number" step="0.01" {...form.register("amount", { valueAsNumber: true })} />
+                </div>
+                <div>
+                  <Label htmlFor="currency">Currency</Label>
+                  <Input id="currency" {...form.register("currency")} />
+                </div>
+                <div>
+                  <Label htmlFor="is_fia_blacklist">FIA Blacklist</Label>
+                  <Input id="is_fia_blacklist" type="checkbox" {...form.register("is_fia_blacklist")} />
+                </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Input id="status" {...form.register("status")} />
                 </div>
               </div>
 

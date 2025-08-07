@@ -12,8 +12,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Search, Plus } from "lucide-react"
-import { Application } from "@/lib/stores/application-store"
+import { 
+  MoreHorizontal, 
+  Search, 
+  Plus, 
+  Upload, 
+  Printer, 
+  Send, 
+  CheckCircle, 
+  XCircle, 
+  AlertTriangle 
+} from "lucide-react"
+import { Application, Region, UserRole } from "@/lib/types"
 import { formatDate, formatStatus, getStatusVariant } from "@/lib/utils/formatting"
 import { showNotification } from "@/lib/utils/notifications"
 import { applicationAPI } from "@/lib/api/applications"
@@ -22,40 +32,54 @@ interface ApplicationsTableProps {
   applications: Application[]
   isLoading?: boolean
   onRefresh?: () => void
+  userRole?: UserRole
+  onApprove?: (id: string, remarks?: string) => Promise<void>
+  onReject?: (id: string, remarks: string) => Promise<void>
+  onBlacklist?: (id: string, remarks: string) => Promise<void>
+  onSendToAgency?: (id: string, region: Region) => Promise<void>
+  onUploadAttachment?: (id: string) => void
+  onPrint?: (id: string) => void
 }
 
-export function ApplicationsTable({ applications, isLoading, onRefresh }: ApplicationsTableProps) {
+export function ApplicationsTable({ 
+  applications, 
+  isLoading, 
+  onRefresh,
+  userRole,
+  onApprove,
+  onReject,
+  onBlacklist,
+  onSendToAgency,
+  onUploadAttachment,
+  onPrint
+}: ApplicationsTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const router = useRouter()
 
   const filteredApplications = applications.filter((app) =>
-    `${app.first_name} ${app.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    app.citizen_id.includes(searchTerm) ||
+    `${app.firstName} ${app.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    app.citizenId.includes(searchTerm) ||
     app.id.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleApprove = async (id: string) => {
-    try {
-      await applicationAPI.approve(id)
-      showNotification.success("Application approved successfully")
-      onRefresh?.()
-    } catch (error) {
-      showNotification.error("Failed to approve application")
+  const canPerformAction = (application: Application) => {
+    switch (userRole) {
+      case 'MISSION_OPERATOR':
+        return application.status === 'DRAFT'
+      case 'AGENCY':
+        return ['SUBMITTED', 'AGENCY_REVIEW'].includes(application.status)
+      case 'MINISTRY':
+        return ['SUBMITTED', 'MINISTRY_REVIEW', 'AGENCY_REVIEW'].includes(application.status)
+      case 'ADMIN':
+        return true
+      default:
+        return false
     }
   }
 
-  const handleReject = async (id: string) => {
-    try {
-      await applicationAPI.reject(id, "Application rejected")
-      showNotification.success("Application rejected successfully")
-      onRefresh?.()
-    } catch (error) {
-      showNotification.error("Failed to reject application")
-    }
-  }
-
-  const canApprove = (status: string) => {
-    return ["SUBMITTED", "UNDER_REVIEW"].includes(status)
+  const canPrint = (application: Application) => {
+    return userRole === 'MISSION_OPERATOR' && 
+           ['APPROVED', 'COMPLETED'].includes(application.status)
   }
 
   if (isLoading) {
@@ -85,10 +109,12 @@ export function ApplicationsTable({ applications, isLoading, onRefresh }: Applic
                 className="pl-10 w-64"
               />
             </div>
-            <Button onClick={() => router.push("/applications/new")}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Application
-            </Button>
+            {userRole === 'MISSION_OPERATOR' && (
+              <Button onClick={() => router.push("/applications/new")}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Application
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -116,7 +142,7 @@ export function ApplicationsTable({ applications, isLoading, onRefresh }: Applic
                   <td className="p-3">
                     <div>
                       <div className="font-medium">
-                        {application.first_name} {application.last_name}
+                        {application.firstName} {application.lastName}
                       </div>
                       <div className="text-sm text-gray-500">
                         {application.profession}
@@ -124,7 +150,7 @@ export function ApplicationsTable({ applications, isLoading, onRefresh }: Applic
                     </div>
                   </td>
                   <td className="p-3">
-                    <span className="font-mono text-sm">{application.citizen_id}</span>
+                    <span className="font-mono text-sm">{application.citizenId}</span>
                   </td>
                   <td className="p-3">
                     <Badge variant={getStatusVariant(application.status)}>
@@ -147,17 +173,79 @@ export function ApplicationsTable({ applications, isLoading, onRefresh }: Applic
                         >
                           View Details
                         </DropdownMenuItem>
-                        {canApprove(application.status) && (
+                        
+                        {/* Mission Operator Actions */}
+                        {userRole === 'MISSION_OPERATOR' && canPrint(application) && (
+                          <DropdownMenuItem
+                            onClick={() => onPrint?.(application.id)}
+                          >
+                            <Printer className="mr-2 h-4 w-4" />
+                            Print Document
+                          </DropdownMenuItem>
+                        )}
+
+                        {/* Agency Actions */}
+                        {userRole === 'AGENCY' && canPerformAction(application) && (
                           <>
                             <DropdownMenuItem
-                              onClick={() => handleApprove(application.id)}
+                              onClick={() => onUploadAttachment?.(application.id)}
                             >
-                              Approve
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload Attachment
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleReject(application.id)}
+                              onClick={() => onApprove?.(application.id)}
                             >
-                              Reject
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Approve & Send to Ministry
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const remarks = prompt('Enter rejection remarks:')
+                                if (remarks) onReject?.(application.id, remarks)
+                              }}
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Reject with Remarks
+                            </DropdownMenuItem>
+                          </>
+                        )}
+
+                        {/* Ministry Actions */}
+                        {userRole === 'MINISTRY' && canPerformAction(application) && (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => onApprove?.(application.id)}
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Approve Application
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const remarks = prompt('Enter rejection remarks:')
+                                if (remarks) onReject?.(application.id, remarks)
+                              }}
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Reject Application
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const remarks = prompt('Enter blacklist reason:')
+                                if (remarks) onBlacklist?.(application.id, remarks)
+                              }}
+                            >
+                              <AlertTriangle className="mr-2 h-4 w-4" />
+                              Blacklist Application
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const region = prompt('Select region (PUNJAB, SINDH, KPK, BALOCHISTAN):') as Region
+                                if (region) onSendToAgency?.(application.id, region)
+                              }}
+                            >
+                              <Send className="mr-2 h-4 w-4" />
+                              Send to Agency
                             </DropdownMenuItem>
                           </>
                         )}

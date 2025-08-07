@@ -1,38 +1,25 @@
-import { withAuth } from "next-auth/middleware"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { getAuthUser, isPublicRoute, hasAccess } from "@/lib/auth/auth-utils"
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token
-    const { pathname } = req.nextUrl
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
 
-    // Public routes
-    if (pathname.startsWith("/login") || pathname === "/") {
-      return NextResponse.next()
-    }
-
-    // Role-based access control
-    const roleRoutes = {
-      "/admin": ["ADMIN"],
-      "/agency": ["AGENCY", "ADMIN"],
-      "/ministry": ["MINISTRY", "ADMIN"],
-      "/hq": ["ADMIN"],
-    }
-
-    for (const [route, allowedRoles] of Object.entries(roleRoutes)) {
-      if (pathname.startsWith(route) && !allowedRoles.includes(token?.role as string)) {
-        return NextResponse.redirect(new URL("/unauthorized", req.url))
-      }
-    }
-
+  if (isPublicRoute(pathname)) {
     return NextResponse.next()
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token,
-    },
   }
-)
+
+  const user = await getAuthUser(request)
+
+  if (!user) {
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
+
+  if (!hasAccess(user.role, pathname)) {
+    return NextResponse.redirect(new URL("/unauthorized", request.url))
+  }
+
+  return NextResponse.next()
+}
 
 export const config = {
   matcher: [

@@ -52,11 +52,13 @@ export function LoginForm() {
               router.push("/ministry")
               break
             case "MISSION_OPERATOR":
-              router.push("/hq")
+              router.push("/mission")
               break
             default:
               router.push("/admin")
           }
+        } else {
+          router.push("/")
         }
       } else {
         showNotification.error(result.error || "Login failed")

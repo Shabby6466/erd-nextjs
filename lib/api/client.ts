@@ -1,4 +1,5 @@
 import axios from "axios"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3837/v1/api"
 
@@ -13,7 +14,7 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("auth_token")
+      const { token } = useAuthStore.getState()
       if (token) {
         config.headers.Authorization = `Bearer ${token}`
       }
@@ -32,8 +33,9 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       // Handle unauthorized access
       if (typeof window !== "undefined") {
-        localStorage.removeItem("auth_token")
-        window.location.href = "/login"
+        const { logout } = useAuthStore.getState()
+        // logout()
+        // window.location.href = "/login"
       }
     }
     return Promise.reject(error)

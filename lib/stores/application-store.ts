@@ -27,6 +27,8 @@ export interface ApplicationFilters {
   search?: string
   page?: number
   limit?: number
+  state?:string
+  submittedBy?:string
 }
 
 interface ApplicationState {

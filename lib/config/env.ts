@@ -3,9 +3,8 @@ export const env = {
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3837/v1/api",
   BACKEND_URL: process.env.BACKEND_URL || "http://localhost:3837/v1/api",
   
-  // NextAuth Configuration
-  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || "your-secret-key-here",
-  NEXTAUTH_URL: process.env.NEXTAUTH_URL || "http://localhost:3000",
+  // JWT Configuration
+  JWT_SECRET: process.env.JWT_SECRET || "your-jwt-secret-key-here",
   
   // Database Configuration
   DATABASE_URL: process.env.DATABASE_URL,
