@@ -1,0 +1,966 @@
+# ETD Frontend - Complete Migration Documentation for Next.js
+
+## PROJECT OVERVIEW
+
+**Emergency Travel Document (ETD) Management System** - A government application for processing emergency travel documents with role-based access control, form handling, API integrations, and document management.
+
+**Current Tech Stack:** Vanilla HTML/CSS/JavaScript with static file serving
+**Target Migration:** Next.js 14+ with App Router, TypeScript, Tailwind CSS
+
+## SYSTEM ARCHITECTURE
+
+### Current Architecture
+- **Frontend**: Static HTML pages with vanilla JavaScript
+- **Routing**: File-based static routing (direct HTML file access)
+- **State Management**: localStorage/sessionStorage + class-based JavaScript
+- **Styling**: Custom CSS files per page
+- **API Layer**: Custom JavaScript classes for HTTP requests
+- **Authentication**: JWT tokens stored in localStorage
+- **File Structure**: Traditional static web app structure
+
+### Proposed Next.js Architecture
+- **Framework**: Next.js 14+ with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **State Management**: Zustand or React Context + useReducer
+- **API Layer**: Next.js API routes + tRPC or vanilla fetch with React Query
+- **Authentication**: NextAuth.js or custom JWT with middleware
+- **Database**: Integration ready for TYPEORM
+
+## DETAILED CURRENT SYSTEM ANALYSIS
+
+### 1. PROJECT STRUCTURE
+```
+etd-frontend/
+├── index.html                          # Entry point with loading screen
+├── src/
+│   ├── pages/
+│   │   ├── auth/
+│   │   │   ├── index.html              # Auth routing page
+│   │   │   └── login.html              # Login form
+│   │   ├── dashboards/
+│   │   │   ├── AdminDashboard.html     # Admin dashboard
+│   │   │   ├── AgencyDashboard.html    # Agency dashboard  
+│   │   │   ├── FMdashboard.html        # Foreign Ministry dashboard
+│   │   │   └── HQdashboard.html        # Headquarters dashboard
+│   │   ├── forms/
+│   │   │   ├── Citizen.html            # Citizen info form (CNIC entry)
+│   │   │   ├── Nadra-and-passport.html # NADRA/Passport verification
+│   │   │   └── SB.html                 # Special Branch form
+│   │   └── views/
+│   │       ├── AgencyView.html         # Agency-specific view
+│   │       ├── application-view.html   # Application detail view
+│   │       ├── ETD-remarks2.html       # ETD remarks
+│   │       ├── ETDdataviewApproved.html    # Approved applications view
+│   │       ├── ETDdataViewNotApproved.html # Not approved applications view
+│   │       └── HQview.html             # HQ-specific view
+│   ├── scripts/
+│   │   ├── auth-service.js             # Authentication logic
+│   │   ├── backend-api-service.js      # Backend API calls
+│   │   ├── application-service.js      # Application CRUD operations
+│   │   ├── dashboard-service.js        # Dashboard data fetching
+│   │   ├── dashboard-handler.js        # Dashboard UI logic
+│   │   ├── login-handler.js            # Login form handling
+│   │   ├── integrated-form-handler.js  # Comprehensive form management
+│   │   ├── application-view-handler.js # Application view logic
+│   │   └── utils.js                    # Utility functions
+│   └── styles/
+│       └── pages/                      # Page-specific CSS files
+├── config/
+│   ├── api.config.js                   # API configuration
+│   ├── app.config.js                   # App configuration
+│   └── deployment.config.js            # Deployment settings
+└── public/
+    └── assets/                         # Static assets (images, SVGs)
+```
+
+### 2. AUTHENTICATION SYSTEM
+
+**Current Implementation:**
+- JWT tokens stored in localStorage
+- Role-based access: ADMIN, MINISTRY, AGENCY, MISSION_OPERATOR
+- Manual route protection in each page
+- AuthService class manages authentication state
+
+**Key Features:**
+- Login with email/password
+- Role-based dashboard routing
+- Token refresh capabilities
+- Session management
+- Logout functionality
+
+**AuthService Methods:**
+```javascript
+class AuthService {
+    async login(email, password)
+    async logout()
+    isAuthenticated()
+    getCurrentUser()
+    getUserRole()
+    hasPermission(requiredRole)
+    requireAuth()
+    requireRole(requiredRole)
+    redirectToDashboard()
+}
+```
+
+### 3. API INTEGRATION
+
+**Backend API Service (backend-api-service.js):**
+- Base URL: `http://localhost:3837/v1/api`
+- JWT token authentication
+- RESTful endpoints for users, applications, dashboards
+
+**Key API Endpoints:**
+```javascript
+// Authentication
+POST /auth/login
+POST /auth/admin/create-user
+
+// Users
+GET /users
+GET /users/profile
+
+// Applications
+POST /applications
+GET /applications
+GET /applications/:id
+PUT /applications/:id
+PATCH /applications/:id/review
+
+// Dashboard
+GET /dashboard/admin/stats
+GET /dashboard/agency/applications
+GET /dashboard/ministry/applications
+GET /dashboard/mission-operator/summary
+```
+
+**External API Integrations:**
+- NADRA API for citizen verification
+- Passport API for passport verification
+- Simulation mode for testing
+
+### 4. FORM SYSTEM
+
+**Multi-step Form Flow:**
+1. **Citizen.html** - CNIC entry and basic info
+2. **Nadra-and-passport.html** - External API verification
+3. **SB.html** - Special Branch additional info
+
+**Form Features:**
+- Real-time validation
+- Auto-population from external APIs
+- Manual data entry fallback
+- Draft saving capabilities
+- File upload support
+- CNIC formatting and validation
+
+**IntegratedFormHandler Class:**
+```javascript
+class IntegratedFormHandler {
+    async handleGetData()           # Fetch from NADRA/Passport APIs
+    async fetchExternalData()       # External API calls
+    showCustomForm()               # Manual entry mode
+    async handleSave()             # Save draft/submit
+    extractFormData()              # Form data extraction
+    validateForm()                 # Client-side validation
+}
+```
+
+### 5. DASHBOARD SYSTEM
+
+**Role-Based Dashboards:**
+- **AdminDashboard**: System administration, user management
+- **AgencyDashboard**: Application processing for agencies  
+- **FMdashboard**: Foreign Ministry operations
+- **HQdashboard**: Headquarters oversight
+
+**Dashboard Features:**
+- Real-time application statistics
+- Application listing with pagination
+- Status filtering and search
+- Approve/Reject actions
+- Application detail views
+- User profile management
+
+**DashboardHandler Methods:**
+```javascript
+class DashboardHandler {
+    async loadDashboard()          # Load dashboard data
+    renderWidgets()                # Statistics widgets
+    renderApplicationsTable()      # Applications table
+    async approveApplication()     # Approve action
+    async rejectApplication()      # Reject action
+    setupUserProfile()             # User profile setup
+}
+```
+
+### 6. APPLICATION LIFECYCLE
+
+**Application States:**
+- DRAFT: Initial creation
+- SUBMITTED: Submitted for review
+- UNDER_REVIEW: Being processed
+- APPROVED: Approved by authority
+- REJECTED: Rejected with reason
+- COMPLETED: Process finished
+
+**Application Data Model:**
+```javascript
+{
+    id: string,
+    status: string,
+    citizen_id: string,
+    first_name: string,
+    last_name: string,
+    father_name: string,
+    mother_name: string,
+    date_of_birth: string,
+    nationality: string,
+    profession: string,
+    pakistan_city: string,
+    pakistan_address: string,
+    height: string,
+    color_of_eyes: string,
+    color_of_hair: string,
+    departure_date: string,
+    transport_mode: string,
+    createdAt: string,
+    updatedAt: string
+}
+```
+
+### 7. ROUTING SYSTEM
+
+**Current Routing (Static):**
+```
+/ → index.html → redirects to login
+/src/pages/auth/login.html → Login page
+/src/pages/dashboards/[role]dashboard.html → Role-based dashboards
+/src/pages/forms/Citizen.html → CNIC entry form
+/src/pages/forms/Nadra-and-passport.html → Verification form
+/src/pages/views/application-view.html?id=X → Application details
+```
+
+**Route Protection:**
+- Manual authentication checks in each page
+- Role-based access control
+- Redirect to login if unauthenticated
+- Redirect to appropriate dashboard after login
+
+### 8. STYLING SYSTEM
+
+**Current CSS Structure:**
+- Global styles in `globals.css`
+- Page-specific CSS files in `styles/pages/`
+- Component-level styling with CSS classes
+- Inter font family throughout
+- Color scheme: #E5EDFF (background), #525EB1 (primary)
+
+**Key Design Elements:**
+- Rounded corners (border-radius: 8px-24px)
+- Card-based layouts
+- Gradient backgrounds
+- Government color scheme
+- Responsive design considerations
+
+### 9. UTILITY FUNCTIONS
+
+**Utils Class Features:**
+```javascript
+class Utils {
+    static formatDate(dateString)
+    static formatCNIC(cnic)
+    static validateCNIC(cnic)
+    static validateEmail(email)
+    static showNotification(message, type)
+    static showLoading(container, message)
+    static confirmAction(message, callback)
+    static createModal(title, content, actions)
+    static debounce(func, wait)
+    static parseURLParams()
+}
+```
+
+### 10. STATE MANAGEMENT
+
+**Current State Approach:**
+- localStorage for persistent data (user, tokens)
+- sessionStorage for temporary data
+- Class properties for component state
+- Manual state synchronization between pages
+
+**State Data:**
+- User authentication state
+- Current application data
+- Form draft data
+- API configuration
+- Dashboard filters and pagination
+
+## MIGRATION STRATEGY TO NEXT.JS
+
+### Phase 1: Project Setup & Configuration
+
+1. **Initialize Next.js Project:**
+```bash
+npx create-next-app@latest etd-nextjs --typescript --tailwind --eslint --app
+cd etd-nextjs
+```
+
+2. **Install Dependencies:**
+```bash
+# UI Components
+npm install @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-tabs
+npm install @radix-ui/react-form @radix-ui/react-table @radix-ui/react-toast
+npm install lucide-react class-variance-authority clsx tailwind-merge
+
+# State Management
+npm install zustand
+
+# Form Handling
+npm install react-hook-form @hookform/resolvers zod
+
+# API & Data Fetching
+npm install @tanstack/react-query axios
+
+# Authentication
+npm install next-auth
+
+# Date Handling
+npm install date-fns
+
+# File Upload
+npm install react-dropzone
+
+# Development
+npm install -D @types/node
+```
+
+3. **Project Structure:**
+```
+etd-nextjs/
+├── app/
+│   ├── (auth)/
+│   │   └── login/
+│   │       └── page.tsx
+│   ├── (dashboard)/
+│   │   ├── admin/
+│   │   ├── agency/
+│   │   ├── ministry/
+│   │   └── hq/
+│   ├── applications/
+│   │   ├── new/
+│   │   └── [id]/
+│   ├── api/
+│   │   ├── auth/
+│   │   ├── applications/
+│   │   └── users/
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── ui/                    # shadcn/ui components
+│   ├── forms/
+│   ├── dashboard/
+│   ├── auth/
+│   └── shared/
+├── lib/
+│   ├── api/
+│   ├── auth/
+│   ├── utils/
+│   ├── stores/
+│   ├── validations/
+│   └── types/
+├── hooks/
+├── middleware.ts
+└── next.config.js
+```
+
+### Phase 2: Authentication Migration
+
+1. **NextAuth.js Setup:**
+```typescript
+// lib/auth/auth.config.ts
+export const authConfig = {
+  providers: [
+    Credentials({
+      credentials: {
+        email: { type: 'email' },
+        password: { type: 'password' }
+      },
+      authorize: async (credentials) => {
+        // Authenticate against existing backend
+        const response = await fetch(`${process.env.API_URL}/auth/login`, {
+          method: 'POST',
+          body: JSON.stringify(credentials)
+        })
+        
+        if (response.ok) {
+          const user = await response.json()
+          return user
+        }
+        return null
+      }
+    })
+  ],
+  callbacks: {
+    jwt: async ({ token, user }) => {
+      if (user) token.role = user.role
+      return token
+    },
+    session: async ({ session, token }) => {
+      session.user.role = token.role
+      return session
+    }
+  }
+}
+```
+
+2. **Middleware for Route Protection:**
+```typescript
+// middleware.ts
+export function middleware(request: NextRequest) {
+  const token = request.nextauth.token
+  const { pathname } = request.nextUrl
+  
+  // Public routes
+  if (pathname.startsWith('/login')) return NextResponse.next()
+  
+  // Protected routes
+  if (!token) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+  
+  // Role-based access
+  const roleRoutes = {
+    '/admin': ['ADMIN'],
+    '/agency': ['AGENCY', 'ADMIN'],
+    '/ministry': ['MINISTRY', 'ADMIN'],
+    '/hq': ['ADMIN']
+  }
+  
+  for (const [route, allowedRoles] of Object.entries(roleRoutes)) {
+    if (pathname.startsWith(route) && !allowedRoles.includes(token.role)) {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
+    }
+  }
+  
+  return NextResponse.next()
+}
+```
+
+### Phase 3: State Management Migration
+
+1. **Zustand Stores:**
+```typescript
+// lib/stores/auth-store.ts
+interface AuthState {
+  user: User | null
+  token: string | null
+  login: (email: string, password: string) => Promise<void>
+  logout: () => void
+  isAuthenticated: () => boolean
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  token: null,
+  login: async (email, password) => {
+    const response = await authAPI.login(email, password)
+    set({ user: response.user, token: response.token })
+  },
+  logout: () => {
+    set({ user: null, token: null })
+  },
+  isAuthenticated: () => !!get().token
+}))
+
+// lib/stores/application-store.ts
+interface ApplicationState {
+  applications: Application[]
+  currentApplication: Application | null
+  filters: ApplicationFilters
+  setApplications: (apps: Application[]) => void
+  updateApplication: (id: string, data: Partial<Application>) => void
+}
+```
+
+2. **React Query Integration:**
+```typescript
+// lib/api/queries.ts
+export const useApplications = (filters?: ApplicationFilters) => {
+  return useQuery({
+    queryKey: ['applications', filters],
+    queryFn: () => applicationAPI.getAll(filters),
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  })
+}
+
+export const useApplication = (id: string) => {
+  return useQuery({
+    queryKey: ['application', id],
+    queryFn: () => applicationAPI.getById(id),
+    enabled: !!id
+  })
+}
+
+export const useCreateApplication = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: applicationAPI.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['applications'] })
+    }
+  })
+}
+```
+
+### Phase 4: Component Migration
+
+1. **Form Components:**
+```typescript
+// components/forms/CitizenForm.tsx
+export function CitizenForm() {
+  const form = useForm<CitizenFormData>({
+    resolver: zodResolver(citizenSchema),
+    defaultValues: {
+      citizenId: '',
+      // ... other fields
+    }
+  })
+  
+  const { mutate: getData, isPending } = useGetNadraData()
+  
+  const handleGetData = async () => {
+    const citizenId = form.getValues('citizenId')
+    if (!validateCNIC(citizenId)) {
+      toast.error('Please enter a valid CNIC')
+      return
+    }
+    
+    try {
+      const data = await getData(citizenId)
+      form.reset(data) // Auto-populate form
+    } catch (error) {
+      toast.error('Failed to fetch data')
+    }
+  }
+  
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <FormField
+          control={form.control}
+          name="citizenId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>CNIC Number</FormLabel>
+              <FormControl>
+                <Input 
+                  {...field} 
+                  placeholder="Enter CNIC"
+                  onChange={(e) => {
+                    const formatted = formatCNIC(e.target.value)
+                    field.onChange(formatted)
+                  }}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <Button 
+          type="button" 
+          onClick={handleGetData}
+          disabled={isPending}
+        >
+          {isPending ? 'Fetching...' : 'Get Data'}
+        </Button>
+        
+        <Button type="submit">Save Application</Button>
+      </form>
+    </Form>
+  )
+}
+```
+
+2. **Dashboard Components:**
+```typescript
+// components/dashboard/ApplicationsTable.tsx
+export function ApplicationsTable() {
+  const [pagination, setPagination] = useState({ page: 1, limit: 10 })
+  const [filters, setFilters] = useState<ApplicationFilters>({})
+  
+  const { data, isLoading } = useApplications({ ...filters, ...pagination })
+  const { mutate: approve } = useApproveApplication()
+  const { mutate: reject } = useRejectApplication()
+  
+  const columns = [
+    {
+      accessorKey: 'id',
+      header: 'Application ID',
+      cell: ({ row }) => row.original.id.substring(0, 8)
+    },
+    {
+      accessorKey: 'applicantName',
+      header: 'Applicant',
+      cell: ({ row }) => `${row.original.firstName} ${row.original.lastName}`
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => (
+        <Badge variant={getStatusVariant(row.original.status)}>
+          {formatStatus(row.original.status)}
+        </Badge>
+      )
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem 
+              onClick={() => router.push(`/applications/${row.original.id}`)}
+            >
+              View Details
+            </DropdownMenuItem>
+            {canApprove(row.original.status) && (
+              <>
+                <DropdownMenuItem 
+                  onClick={() => approve(row.original.id)}
+                >
+                  Approve
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => reject(row.original.id)}
+                >
+                  Reject
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    }
+  ]
+  
+  return (
+    <div className="space-y-4">
+      <ApplicationFilters filters={filters} onFiltersChange={setFilters} />
+      <DataTable 
+        columns={columns} 
+        data={data?.applications || []} 
+        loading={isLoading}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+      />
+    </div>
+  )
+}
+```
+
+### Phase 5: API Routes Migration
+
+1. **Next.js API Routes:**
+```typescript
+// app/api/applications/route.ts
+export async function GET(request: Request) {
+  const session = await getServerSession(authConfig)
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  
+  const { searchParams } = new URL(request.url)
+  const filters = {
+    status: searchParams.get('status'),
+    page: Number(searchParams.get('page')) || 1,
+    limit: Number(searchParams.get('limit')) || 10
+  }
+  
+  try {
+    // Forward to existing backend API
+    const response = await fetch(`${process.env.BACKEND_URL}/applications`, {
+      headers: {
+        'Authorization': `Bearer ${session.user.token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to fetch applications' }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  const session = await getServerSession(authConfig)
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  
+  const body = await request.json()
+  
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/applications`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.user.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+    
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to create application' }, { status: 500 })
+  }
+}
+```
+
+### Phase 6: Styling Migration
+
+1. **Tailwind Configuration:**
+```javascript
+// tailwind.config.js
+module.exports = {
+  content: [
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: '#f0f2ff',
+          500: '#525eb1',
+          600: '#464a9a',
+          700: '#3a3e83'
+        },
+        background: '#E5EDFF',
+        card: 'rgba(255, 255, 255, 0.9)'
+      },
+      fontFamily: {
+        sans: ['Inter', 'sans-serif']
+      },
+      borderRadius: {
+        'lg': '8px',
+        'xl': '16px',
+        '2xl': '24px'
+      }
+    }
+  },
+  plugins: [require('@tailwindcss/forms')]
+}
+```
+
+2. **Component Styling Examples:**
+```typescript
+// Replace CSS classes with Tailwind
+// Old: class="dashboard-container"
+// New: className="max-h-[900px] max-w-[1440px] mx-auto p-4 relative"
+
+// Old: class="main-panel"  
+// New: className="h-full w-full bg-white/90 rounded-3xl p-6 shadow-sm"
+
+// Old: class="login-button"
+// New: className="w-full bg-primary-500 text-white rounded-full px-4 py-3 flex items-center justify-center gap-2"
+```
+
+### Phase 7: Utility Functions Migration
+
+1. **Updated Utils:**
+```typescript
+// lib/utils/formatting.ts
+export function formatCNIC(cnic: string): string {
+  const cleaned = cnic.replace(/\D/g, '')
+  if (cleaned.length === 13) {
+    return `${cleaned.substring(0, 5)}-${cleaned.substring(5, 12)}-${cleaned.substring(12)}`
+  }
+  return cnic
+}
+
+export function validateCNIC(cnic: string): boolean {
+  const numericCnic = cnic.replace(/-/g, '')
+  return numericCnic.length === 13 && /^\d+$/.test(numericCnic)
+}
+
+// lib/utils/notifications.ts
+import { toast } from 'sonner'
+
+export const showNotification = {
+  success: (message: string) => toast.success(message),
+  error: (message: string) => toast.error(message),
+  info: (message: string) => toast.info(message),
+  warning: (message: string) => toast.warning(message)
+}
+```
+
+## MIGRATION CHECKLIST
+
+### Pre-Migration Preparation
+- [ ] Document all current API endpoints and responses
+- [ ] Export all existing data/state requirements
+- [ ] Identify all user roles and permissions
+- [ ] Map all current routes and navigation flows
+- [ ] Document all form validation rules
+- [ ] List all external integrations (NADRA, Passport APIs)
+
+### Core Migration Tasks
+
+#### Authentication & Authorization
+- [ ] Implement NextAuth.js with existing backend
+- [ ] Create middleware for route protection
+- [ ] Migrate role-based access control
+- [ ] Implement session management
+- [ ] Add JWT token handling
+
+#### UI/UX Migration  
+- [ ] Set up Tailwind CSS configuration
+- [ ] Install and configure shadcn/ui
+- [ ] Create reusable component library
+- [ ] Migrate all page layouts
+- [ ] Implement responsive design
+- [ ] Add loading states and error boundaries
+
+#### Form System
+- [ ] Implement React Hook Form with Zod validation
+- [ ] Create form components for all existing forms
+- [ ] Migrate CNIC validation and formatting
+- [ ] Implement file upload with progress tracking
+- [ ] Add auto-save functionality
+- [ ] Migrate external API integration (NADRA/Passport)
+
+#### Dashboard System
+- [ ] Create role-based dashboard layouts
+- [ ] Implement data tables with sorting/filtering
+- [ ] Add real-time updates with React Query
+- [ ] Migrate statistics widgets
+- [ ] Implement application status management
+
+#### API Integration
+- [ ] Create Next.js API routes as proxy layer
+- [ ] Implement React Query for data fetching
+- [ ] Add error handling and retry logic
+- [ ] Migrate all CRUD operations
+- [ ] Implement optimistic updates
+
+#### State Management
+- [ ] Set up Zustand stores
+- [ ] Migrate authentication state
+- [ ] Implement application state management
+- [ ] Add form state persistence
+- [ ] Handle global UI state
+
+#### Routing & Navigation
+- [ ] Implement App Router structure
+- [ ] Create nested layouts for dashboard sections
+- [ ] Add breadcrumb navigation
+- [ ] Implement dynamic routing for applications
+- [ ] Add URL parameter handling
+
+### Testing & Quality Assurance
+- [ ] Set up Jest and React Testing Library
+- [ ] Write unit tests for utilities
+- [ ] Add integration tests for forms
+- [ ] Test authentication flows
+- [ ] Verify role-based access
+- [ ] Test API integrations
+- [ ] Perform cross-browser testing
+- [ ] Mobile responsiveness testing
+
+### Performance & Optimization
+- [ ] Implement code splitting
+- [ ] Add image optimization
+- [ ] Set up caching strategies
+- [ ] Optimize bundle size
+- [ ] Add loading optimizations
+- [ ] Implement error boundaries
+
+### Deployment & DevOps
+- [ ] Configure Next.js for production
+- [ ] Set up environment variables
+- [ ] Configure deployment pipeline
+- [ ] Add monitoring and logging
+- [ ] Set up backup strategies
+- [ ] Configure CDN if needed
+
+## SPECIFIC MIGRATION NOTES
+
+### Critical Considerations
+
+1. **Data Migration:**
+   - No database changes needed (using existing backend)
+   - Session data will need to be re-established
+   - File uploads may need path updates
+
+2. **API Compatibility:**
+   - Maintain compatibility with existing backend
+   - Add new Next.js API routes as proxy layer
+   - Keep external API integrations (NADRA/Passport)
+
+3. **User Experience:**
+   - Maintain all current functionality
+   - Improve performance with React optimizations
+   - Add better loading states and error handling
+   - Enhance mobile responsiveness
+
+4. **Security:**
+   - Implement proper CSRF protection
+   - Use Next.js security best practices
+   - Maintain role-based access control
+   - Secure API routes with authentication
+
+5. **Gradual Migration Strategy:**
+   - Phase 1: Authentication and basic routing
+   - Phase 2: Dashboard and list views
+   - Phase 3: Forms and data entry
+   - Phase 4: Application detail views
+   - Phase 5: Advanced features and optimizations
+
+## POST-MIGRATION BENEFITS
+
+1. **Developer Experience:**
+   - TypeScript for better code quality
+   - Modern React patterns and hooks
+   - Better development tools and debugging
+   - Improved code organization
+
+2. **Performance:**
+   - Server-side rendering capabilities
+   - Automatic code splitting
+   - Image optimization
+   - Better caching strategies
+
+3. **Maintainability:**
+   - Component-based architecture
+   - Reusable UI components
+   - Better state management
+   - Improved testing capabilities
+
+4. **User Experience:**
+   - Faster page loads
+   - Better mobile experience
+   - Improved accessibility
+   - Modern UI patterns
+
+5. **Scalability:**
+   - Better code organization
+   - Easier feature additions
+   - Improved performance at scale
+   - Better SEO capabilities
+
+
+## CONCLUSION
+
+This migration from vanilla JavaScript to Next.js will significantly improve the maintainability, performance, and developer experience of the ETD system while preserving all existing functionality. The migration should be done incrementally to minimize disruption and ensure proper testing at each phase.
