@@ -16,6 +16,7 @@ import { useAuthStore } from "@/lib/stores/auth-store"
 import { SendForVerificationModal } from "@/components/ministry/SendForVerificationModal"
 import { SubmitVerificationModal } from "@/components/agency/SubmitVerificationModal"
 import { MinistryReviewModal } from "@/components/ministry/MinistryReviewModal"
+import { DraftReviewModal } from "@/components/ministry/DraftReviewModal"
 import { PDFLink } from "@/components/ui/PDFViewer"
 
 
@@ -32,6 +33,7 @@ export default function ApplicationViewPage() {
   const [showSendForVerificationModal, setShowSendForVerificationModal] = useState(false)
   const [showSubmitVerificationModal, setShowSubmitVerificationModal] = useState(false)
   const [showMinistryReviewModal, setShowMinistryReviewModal] = useState(false)
+  const [showDraftReviewModal, setShowDraftReviewModal] = useState(false)
 
   const role: UserRole | undefined = user?.role as UserRole | undefined
   console.log('User role:', role)
@@ -165,23 +167,58 @@ export default function ApplicationViewPage() {
     }
   }
 
+  const handleDraftApprove = async (data: { black_list_check?: boolean }) => {
+    if (!application) return
+    setIsActionLoading(true)
+    try {
+      await applicationAPI.updateStatus(application.id, {
+        status: "APPROVED",
+        ...(data.black_list_check && { black_list_check: true })
+      })
+      showNotification.success("Application approved")
+      setShowDraftReviewModal(false)
+      await refresh()
+    } catch (error: any) {
+      console.error('Failed to approve application:', error)
+      showNotification.error(error.response?.data?.message || "Failed to approve application")
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
+
+  const handleDraftReject = async (data: { rejection_reason: string, black_list_check?: boolean }) => {
+    if (!application) return
+    setIsActionLoading(true)
+    try {
+      await applicationAPI.updateStatus(application.id, {
+        status: "REJECTED",
+        rejection_reason: data.rejection_reason,
+        ...(data.black_list_check && { black_list_check: true })
+      })
+      showNotification.success("Application rejected")
+      setShowDraftReviewModal(false)
+      await refresh()
+    } catch (error: any) {
+      console.error('Failed to reject application:', error)
+      showNotification.error(error.response?.data?.message || "Failed to reject application")
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
+
   const handleMinistryApprove = async () => {
     if (!application) return
     setIsActionLoading(true)
     try {
-      // Use new status update API for VERIFICATION_RECEIVED status
-      if (application.status === "VERIFICATION_RECEIVED") {
-        await applicationAPI.updateStatus(application.id, {
-          status: "APPROVED"
-        })
-      } else {
-        // Use legacy API for other statuses
-        await applicationAPI.ministryApprove(application.id)
-      }
+      // Use status update API for all approvals
+      await applicationAPI.updateStatus(application.id, {
+        status: "APPROVED"
+      })
       showNotification.success("Application approved")
       await refresh()
-    } catch {
-      showNotification.error("Failed to approve application")
+    } catch (error: any) {
+      console.error('Failed to approve application:', error)
+      showNotification.error(error.response?.data?.message || "Failed to approve application")
     } finally {
       setIsActionLoading(false)
     }
@@ -427,17 +464,85 @@ export default function ApplicationViewPage() {
             </Section>
           </div>
 
-          <div className="mt-6">
-            <Section title="Request & Flags">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <GridItem label="Investor" value={application.investor || '-'} />
-                <GridItem label="Requested By" value={application.requestedBy || '-'} />
-                <GridItem label="Reason for Deport" value={application.reason_for_deport} />
-                <GridItem label="Amount" value={application.securityDeposit || '-'} />
-                <GridItem label="FIA Blacklist" value={application.isFiaBlacklist ? "Yes" : "No"} />
-              </div>
-            </Section>
-          </div>
+                     {/* Blacklist Check Flag - Highlighted Section */}
+           {application.blacklistCheckPassed !== undefined && (
+             <div className="mt-6">
+               <div className={`p-4 rounded-lg border-2 ${
+                 application.blacklistCheckPassed 
+                   ? 'bg-green-50 border-green-300' 
+                   : 'bg-red-50 border-red-300'
+               }`}>
+                 <div className="flex items-center gap-3">
+                   <div className={`p-2 rounded-full ${
+                     application.blacklistCheckPassed 
+                       ? 'bg-green-100 text-green-600' 
+                       : 'bg-red-100 text-red-600'
+                   }`}>
+                     {application.blacklistCheckPassed ? (
+                       <CheckCircle className="h-5 w-5" />
+                     ) : (
+                       <XCircle className="h-5 w-5" />
+                     )}
+                   </div>
+                   <div>
+                     <h4 className={`font-semibold ${
+                       application.blacklistCheckPassed 
+                         ? 'text-green-800' 
+                         : 'text-red-800'
+                     }`}>
+                       Blacklist Check Status
+                     </h4>
+                     <p className={`text-sm ${
+                       application.blacklistCheckPassed 
+                         ? 'text-green-700' 
+                         : 'text-red-700'
+                     }`}>
+                       {application.blacklistCheckPassed 
+                         ? 'Passed - No blacklist issues found' 
+                         : 'Failed - Blacklist issues detected (Application still approved)'
+                       }
+                     </p>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           )}
+
+           {/* Rejection Reason - Highlighted Section */}
+           {application.status === "REJECTED" && application.rejectionReason && (
+             <div className="mt-6">
+               <div className="p-4 rounded-lg border-2 bg-red-50 border-red-300">
+                 <div className="flex items-start gap-3">
+                   <div className="p-2 rounded-full bg-red-100 text-red-600 mt-1">
+                     <XCircle className="h-5 w-5" />
+                   </div>
+                   <div className="flex-1">
+                     <h4 className="font-semibold text-red-800 mb-2">
+                       Application Rejected
+                     </h4>
+                     <div className="bg-white p-3 rounded border border-red-200">
+                       <p className="text-sm text-gray-600 mb-1">Rejection Reason:</p>
+                       <p className="text-red-800 font-medium">
+                         {application.rejectionReason}
+                       </p>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           )}
+
+           <div className="mt-6">
+             <Section title="Request & Flags">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <GridItem label="Investor" value={application.investor || '-'} />
+                 <GridItem label="Requested By" value={application.requestedBy || '-'} />
+                 <GridItem label="Reason for Deport" value={application.reason_for_deport} />
+                 <GridItem label="Amount" value={application.securityDeposit || '-'} />
+                 <GridItem label="FIA Blacklist" value={application.isFiaBlacklist ? "Yes" : "No"} />
+               </div>
+             </Section>
+           </div>
 
           <div className="mt-6">
             <Section title="Status & Audit">
@@ -682,11 +787,15 @@ export default function ApplicationViewPage() {
               {/* Ministry Actions for DRAFT Applications */}
               {(role === "MINISTRY" || role === "ADMIN") && application.status === "DRAFT" && (
                 <>
+                  <Button 
+                    onClick={() => setShowDraftReviewModal(true)} 
+                    disabled={isActionLoading}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <CheckCircle className="mr-2 h-4 w-4" /> Review Application
+                  </Button>
                   <Button onClick={() => setShowSendForVerificationModal(true)} disabled={isActionLoading}>
                     <Send className="mr-2 h-4 w-4" /> Send for Verification
-                  </Button>
-                  <Button onClick={handleDirectReject} variant="destructive" disabled={isActionLoading}>
-                    <XCircle className="mr-2 h-4 w-4" /> Reject
                   </Button>
                 </>
               )}
@@ -768,6 +877,14 @@ export default function ApplicationViewPage() {
       onClose={() => setShowMinistryReviewModal(false)}
       onApprove={handleMinistryReviewApprove}
       onReject={handleMinistryReviewReject}
+      isLoading={isActionLoading}
+    />
+
+    <DraftReviewModal
+      isOpen={showDraftReviewModal}
+      onClose={() => setShowDraftReviewModal(false)}
+      onApprove={handleDraftApprove}
+      onReject={handleDraftReject}
       isLoading={isActionLoading}
     />
     </div>

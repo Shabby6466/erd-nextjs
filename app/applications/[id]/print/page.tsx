@@ -215,6 +215,74 @@ export default function PrintApplicationPage() {
         )}
       </div>
 
+      {/* Blacklist Check Flag - Highlighted Section */}
+      {application.blacklistCheckPassed !== undefined && (
+        <div className="mb-8">
+          <div className={`p-4 rounded-lg border-2 ${
+            application.blacklistCheckPassed 
+              ? 'bg-green-50 border-green-300' 
+              : 'bg-red-50 border-red-300'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-full ${
+                application.blacklistCheckPassed 
+                  ? 'bg-green-100 text-green-600' 
+                  : 'bg-red-100 text-red-600'
+              }`}>
+                {application.blacklistCheckPassed ? (
+                  <span className="text-lg">✅</span>
+                ) : (
+                  <span className="text-lg">❌</span>
+                )}
+              </div>
+              <div>
+                <h4 className={`font-semibold text-lg ${
+                  application.blacklistCheckPassed 
+                    ? 'text-green-800' 
+                    : 'text-red-800'
+                }`}>
+                  Blacklist Check Status
+                </h4>
+                <p className={`text-sm ${
+                  application.blacklistCheckPassed 
+                    ? 'text-green-700' 
+                    : 'text-red-700'
+                }`}>
+                  {application.blacklistCheckPassed 
+                    ? 'Passed - No blacklist issues found' 
+                    : 'Failed - Blacklist issues detected (Application still approved)'
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Reason - Highlighted Section */}
+      {application.status === "REJECTED" && application.rejectionReason && (
+        <div className="mb-8">
+          <div className="p-4 rounded-lg border-2 bg-red-50 border-red-300">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-full bg-red-100 text-red-600 mt-1">
+                <span className="text-lg">❌</span>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-red-800 mb-2 text-lg">
+                  Application Rejected
+                </h4>
+                <div className="bg-white p-3 rounded border border-red-200">
+                  <p className="text-sm text-gray-600 mb-1">Rejection Reason:</p>
+                  <p className="text-red-800 font-medium">
+                    {application.rejectionReason}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="mt-12 pt-8 border-t-2 border-gray-300">
         <div className="flex justify-between items-center">

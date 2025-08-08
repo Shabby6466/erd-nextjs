@@ -131,6 +131,7 @@ export function ApplicationsTable({
                 <th className="text-left p-3 font-medium">Applicant</th>
                 <th className="text-left p-3 font-medium">CNIC</th>
                 <th className="text-left p-3 font-medium">Status</th>
+                <th className="text-left p-3 font-medium">Flags</th>
                 <th className="text-left p-3 font-medium">Created</th>
                 {userRole === 'AGENCY' && (
                   <th className="text-left p-3 font-medium">Verification Document</th>
@@ -176,6 +177,20 @@ export function ApplicationsTable({
                     <Badge variant={getStatusVariant(application.status)}>
                       {formatStatus(application.status)}
                     </Badge>
+                  </td>
+                  <td className="p-3">
+                    <div className="flex flex-col gap-1">
+                      {/* Blacklist Check Flag */}
+                      {application.blacklistCheckPassed !== undefined && (
+                        <Badge 
+                          variant={application.blacklistCheckPassed ? "default" : "destructive"}
+                          className="text-xs px-2 py-1"
+                        >
+                          {application.blacklistCheckPassed ? "Passed" : "Failed"}
+                        </Badge>
+                      )}
+                  
+                    </div>
                   </td>
                   <td className="p-3 text-sm text-gray-500">
                     {formatDate(application.createdAt)}
