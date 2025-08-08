@@ -34,36 +34,49 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
+    console.log('Login attempt:', { email: data.email })
     try {
       const result = await login(data.email, data.password)
+      console.log('Login result:', { success: result.success, error: result.error })
+      
       if (result.success) {
         showNotification.success("Login successful")
         // Redirect based on user role
         const user = useAuthStore.getState().user
+        console.log('User after login:', user)
+        
         if (user) {
           switch (user.role) {
             case "ADMIN":
+              console.log('Redirecting to admin dashboard')
               router.push("/admin")
               break
             case "AGENCY":
+              console.log('Redirecting to agency dashboard')
               router.push("/agency")
               break
             case "MINISTRY":
+              console.log('Redirecting to ministry dashboard')
               router.push("/ministry")
               break
             case "MISSION_OPERATOR":
+              console.log('Redirecting to mission dashboard')
               router.push("/mission")
               break
             default:
+              console.log('Unknown role, redirecting to admin')
               router.push("/admin")
           }
         } else {
+          console.log('No user found, redirecting to home')
           router.push("/")
         }
       } else {
+        console.error('Login failed:', result.error)
         showNotification.error(result.error || "Login failed")
       }
     } catch (error) {
+      console.error('Login error:', error)
       showNotification.error("An error occurred during login")
     } finally {
       setIsLoading(false)

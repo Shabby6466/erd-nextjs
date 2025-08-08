@@ -21,6 +21,23 @@ const createUserSchema = z.object({
   agency: z.string().optional(),
   state: z.string().optional(),
   status: z.enum(["ACTIVE", "INACTIVE"]),
+}).refine((data) => {
+  // Agency role must have agency field
+  if (data.role === "AGENCY" && !data.agency) {
+    return false;
+  }
+  // Mission Operator must have state field
+  if (data.role === "MISSION_OPERATOR" && !data.state) {
+    return false;
+  }
+  // Special Branch agencies should have state (except Intelligence Bureau)
+  if (data.role === "AGENCY" && data.agency?.startsWith("SPECIAL_BRANCH") && !data.state) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Please fill in all required fields for the selected role",
+  path: ["role"]
 })
 
 type CreateUserFormData = z.infer<typeof createUserSchema>
@@ -48,17 +65,42 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
   })
 
   const watchedRole = form.watch("role")
+  const watchedAgency = form.watch("agency")
 
   const onSubmit = async (data: CreateUserFormData) => {
     setIsLoading(true)
+    
+    // Prepare payload based on role requirements
+    const payload: any = {
+      email: data.email,
+      fullName: data.fullName,
+      password: data.password,
+      role: data.role,
+      status: data.status,
+    }
+    
+    // Add role-specific fields
+    if (data.role === "AGENCY") {
+      payload.agency = data.agency
+      if (data.state) {
+        payload.state = data.state
+      }
+    } else if (data.role === "MISSION_OPERATOR") {
+      payload.state = data.state
+    }
+    // MINISTRY and ADMIN roles don't need additional fields
+    
+    console.log('Creating user with payload:', payload)
+    
     try {
-      await userAPI.create(data)
+      await userAPI.create(payload)
       showNotification.success("User created successfully")
       onOpenChange(false)
       form.reset()
       // Trigger refresh of user list
       window.location.reload()
     } catch (error: any) {
+      console.error('Failed to create user:', error)
       showNotification.error(error.response?.data?.message || error.message || "Failed to create user")
     } finally {
       setIsLoading(false)
@@ -146,7 +188,7 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
 
             {watchedRole === "MISSION_OPERATOR" && (
               <div className="space-y-2">
-                <Label htmlFor="state">State/Region</Label>
+                <Label htmlFor="state">State/Region *</Label>
                 <select
                   id="state"
                   {...form.register("state")}
@@ -167,7 +209,7 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
             {watchedRole === "AGENCY" && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="agency">Agency</Label>
+                  <Label htmlFor="agency">Agency *</Label>
                   <select
                     id="agency"
                     {...form.register("agency")}
@@ -182,23 +224,26 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
                     <option value="SPECIAL_BRANCH_FEDERAL">Special Branch Federal</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">State/Region</Label>
-                  <select
-                    id="state"
-                    {...form.register("state")}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select State/Region</option>
-                    <option value="Punjab">Punjab</option>
-                    <option value="Sindh">Sindh</option>
-                    <option value="KPK">KPK</option>
-                    <option value="Balochistan">Balochistan</option>
-                    <option value="Gilgit_Baltistan">Gilgit Baltistan</option>
-                    <option value="AJK">AJK</option>
-                    <option value="Federal">Federal</option>
-                  </select>
-                </div>
+                {/* State field - show for Special Branch agencies */}
+                {watchedAgency && watchedAgency.startsWith("SPECIAL_BRANCH") && (
+                  <div className="space-y-2">
+                    <Label htmlFor="state">State/Region *</Label>
+                    <select
+                      id="state"
+                      {...form.register("state")}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select State/Region</option>
+                      <option value="Punjab">Punjab</option>
+                      <option value="Sindh">Sindh</option>
+                      <option value="KPK">KPK</option>
+                      <option value="Balochistan">Balochistan</option>
+                      <option value="Gilgit_Baltistan">Gilgit Baltistan</option>
+                      <option value="AJK">AJK</option>
+                      <option value="Federal">Federal</option>
+                    </select>
+                  </div>
+                )}
               </>
             )}
 

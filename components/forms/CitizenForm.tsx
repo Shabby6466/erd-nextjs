@@ -13,11 +13,13 @@ import { showNotification } from "@/lib/utils/notifications"
 import { citizenSchema, type CitizenFormData } from "@/lib/validations/citizen"
 import { applicationAPI } from "@/lib/api/applications"
 import { nadraAPI } from "@/lib/api/nadra"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 export function CitizenForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isFetchingData, setIsFetchingData] = useState(false)
   const router = useRouter()
+  const { user } = useAuthStore()
 
   const form = useForm<CitizenFormData>({
     resolver: zodResolver(citizenSchema),
@@ -75,7 +77,18 @@ export function CitizenForm() {
     try {
       const application = await applicationAPI.create(data)
       showNotification.success("Application created successfully")
-      router.push(`/applications/${application.id}`)
+      
+      // Navigate based on user role
+      console.log('Application created successfully, user role:', user?.role)
+      if (user?.role === "MISSION_OPERATOR") {
+        // Mission Operators go back to their main dashboard
+        console.log('Redirecting Mission Operator to dashboard')
+        router.push("/mission")
+      } else {
+        // Other roles can view the application details
+        console.log('Redirecting to application details page')
+        router.push(`/applications/${application.id}`)
+      }
     } catch (error) {
       showNotification.error("Failed to create application")
     } finally {

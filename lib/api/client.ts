@@ -31,11 +31,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized access
-      if (typeof window !== "undefined") {
+      // Only auto-logout if it's not a login endpoint
+      const isLoginEndpoint = error.config?.url?.includes('/auth/login')
+      
+      if (!isLoginEndpoint && typeof window !== "undefined") {
+        console.log('401 error on non-login endpoint, logging out')
         const { logout } = useAuthStore.getState()
         logout()
         window.location.href = "/login"
+      } else if (isLoginEndpoint) {
+        console.log('401 error on login endpoint, not auto-logging out')
       }
     }
     return Promise.reject(error)
