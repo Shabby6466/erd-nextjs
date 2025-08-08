@@ -235,12 +235,18 @@ export const applicationAPI = {
       // Determine agency from current user
       userAgency = user?.agency
       if (!userAgency) {
-        // For testing: if user is MINISTRY, determine agency from state
+        // For testing: if user is MINISTRY or AGENCY, determine agency from state
         if (user?.role === 'MINISTRY' || user?.role === 'AGENCY') {
           if (user?.state === 'Punjab') {
             userAgency = 'SPECIAL_BRANCH_PUNJAB'
           } else if (user?.state === 'Sindh') {
             userAgency = 'SPECIAL_BRANCH_SINDH'
+          } else if (user?.state === 'KPK') {
+            userAgency = 'SPECIAL_BRANCH_KPK'
+          } else if (user?.state === 'Balochistan') {
+            userAgency = 'SPECIAL_BRANCH_BALOCHISTAN'
+          } else if (user?.state === 'Federal') {
+            userAgency = 'SPECIAL_BRANCH_FEDERAL'
           } else {
             userAgency = 'INTELLIGENCE_BUREAU'
           }

@@ -34,9 +34,22 @@ export default function AgencyDashboard() {
       // Filter by agency assignment and pending verification agencies
       const filteredApplications = response.data?.filter(app => {
         // Check if this agency should handle this application
-        const userAgency = user?.agency || (user?.state === 'Punjab' ? 'SPECIAL_BRANCH_PUNJAB' : 
-                                           user?.state === 'Sindh' ? 'SPECIAL_BRANCH_SINDH' : 
-                                           'INTELLIGENCE_BUREAU')
+        let userAgency = user?.agency
+        if (!userAgency) {
+          if (user?.state === 'Punjab') {
+            userAgency = 'SPECIAL_BRANCH_PUNJAB'
+          } else if (user?.state === 'Sindh') {
+            userAgency = 'SPECIAL_BRANCH_SINDH'
+          } else if (user?.state === 'KPK') {
+            userAgency = 'SPECIAL_BRANCH_KPK'
+          } else if (user?.state === 'Balochistan') {
+            userAgency = 'SPECIAL_BRANCH_BALOCHISTAN'
+          } else if (user?.state === 'Federal') {
+            userAgency = 'SPECIAL_BRANCH_FEDERAL'
+          } else {
+            userAgency = 'INTELLIGENCE_BUREAU'
+          }
+        }
         
         console.log('Agency filtering:', {
           userAgency,

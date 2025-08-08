@@ -11,14 +11,16 @@ import { Label } from "@/components/ui/label"
 import { showNotification } from "@/lib/utils/notifications"
 import { UserRole, Region } from "@/lib/types"
 import { userAPI } from "@/lib/api/users"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 const createUserSchema = z.object({
-  name: z.string().min(1, "Name is required"),
   email: z.string().email("Please enter a valid email address"),
+  fullName: z.string().min(1, "Full name is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["ADMIN", "MINISTRY", "AGENCY", "MISSION_OPERATOR"]),
-  region: z.string().optional(),
   agency: z.string().optional(),
+  state: z.string().optional(),
+  status: z.enum(["ACTIVE", "INACTIVE"]),
 })
 
 type CreateUserFormData = z.infer<typeof createUserSchema>
@@ -30,16 +32,18 @@ interface CreateUserModalProps {
 
 export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const { user } = useAuthStore()
 
   const form = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
-      name: "",
       email: "",
+      fullName: "",
       password: "",
       role: "MISSION_OPERATOR",
-      region: "",
       agency: "",
+      state: "",
+      status: "ACTIVE",
     },
   })
 
@@ -81,15 +85,15 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="fullName">Full Name</Label>
               <Input
-                id="name"
-                {...form.register("name")}
-                className={form.formState.errors.name ? "border-red-500" : ""}
+                id="fullName"
+                {...form.register("fullName")}
+                className={form.formState.errors.fullName ? "border-red-500" : ""}
               />
-              {form.formState.errors.name && (
+              {form.formState.errors.fullName && (
                 <p className="text-sm text-red-500">
-                  {form.formState.errors.name.message}
+                  {form.formState.errors.fullName.message}
                 </p>
               )}
             </div>
@@ -134,39 +138,81 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
                 <option value="MISSION_OPERATOR">Mission Operator</option>
                 <option value="AGENCY">Agency</option>
                 <option value="MINISTRY">Ministry</option>
-                <option value="ADMIN">Admin</option>
+                {user?.role === "ADMIN" && (
+                  <option value="ADMIN">Admin</option>
+                )}
               </select>
             </div>
 
             {watchedRole === "MISSION_OPERATOR" && (
               <div className="space-y-2">
-                <Label htmlFor="region">Region</Label>
+                <Label htmlFor="state">State/Region</Label>
                 <select
-                  id="region"
-                  {...form.register("region")}
+                  id="state"
+                  {...form.register("state")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select Region</option>
-                  <option value="PUNJAB">Punjab</option>
-                  <option value="SINDH">Sindh</option>
+                  <option value="">Select State/Region</option>
+                  <option value="Punjab">Punjab</option>
+                  <option value="Sindh">Sindh</option>
                   <option value="KPK">KPK</option>
-                  <option value="BALOCHISTAN">Balochistan</option>
-                  <option value="GILGIT_BALTISTAN">Gilgit Baltistan</option>
+                  <option value="Balochistan">Balochistan</option>
+                  <option value="Gilgit_Baltistan">Gilgit Baltistan</option>
                   <option value="AJK">AJK</option>
+                  <option value="Federal">Federal</option>
                 </select>
               </div>
             )}
 
             {watchedRole === "AGENCY" && (
-              <div className="space-y-2">
-                <Label htmlFor="agency">Agency Name</Label>
-                <Input
-                  id="agency"
-                  {...form.register("agency")}
-                  placeholder="e.g., FIA Punjab"
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="agency">Agency</Label>
+                  <select
+                    id="agency"
+                    {...form.register("agency")}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select Agency</option>
+                    <option value="INTELLIGENCE_BUREAU">Intelligence Bureau</option>
+                    <option value="SPECIAL_BRANCH_PUNJAB">Special Branch Punjab</option>
+                    <option value="SPECIAL_BRANCH_SINDH">Special Branch Sindh</option>
+                    <option value="SPECIAL_BRANCH_KPK">Special Branch KPK</option>
+                    <option value="SPECIAL_BRANCH_BALOCHISTAN">Special Branch Balochistan</option>
+                    <option value="SPECIAL_BRANCH_FEDERAL">Special Branch Federal</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">State/Region</Label>
+                  <select
+                    id="state"
+                    {...form.register("state")}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select State/Region</option>
+                    <option value="Punjab">Punjab</option>
+                    <option value="Sindh">Sindh</option>
+                    <option value="KPK">KPK</option>
+                    <option value="Balochistan">Balochistan</option>
+                    <option value="Gilgit_Baltistan">Gilgit Baltistan</option>
+                    <option value="AJK">AJK</option>
+                    <option value="Federal">Federal</option>
+                  </select>
+                </div>
+              </>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <select
+                id="status"
+                {...form.register("status")}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            </div>
 
             <div className="flex gap-2 pt-4">
               <Button
