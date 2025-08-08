@@ -54,10 +54,28 @@ const transformApplicationData = (apiData: any): Application => {
     // New verification fields
     pendingVerificationAgencies: apiData.pending_verification_agencies || [],
     verificationCompletedAgencies: apiData.verification_completed_agencies || [],
-    agencyRemarks: apiData.agency_remarks || [],
+    agencyRemarks: (apiData.agency_remarks || []).map((remark: any) => {
+      const transformedRemark = {
+        agency: remark.agency,
+        remarks: remark.remarks,
+        submittedAt: remark.submitted_at,
+        attachmentUrl: remark.attachment_url ? remark.agency : undefined
+      }
+      console.log('Transforming agency remark:', {
+        original: remark,
+        transformed: transformedRemark
+      })
+      return transformedRemark
+    }),
     rejectionReason: apiData.rejection_reason,
     verificationSentAt: apiData.verification_sent_at,
     verificationCompletedAt: apiData.verification_completed_at,
+    verificationDocumentUrl: apiData.verification_document_url,
+    // ETD fields
+    etdIssueDate: apiData.etd_issue_date,
+    etdExpiryDate: apiData.etd_expiry_date,
+    blacklistCheckPassed: apiData.blacklist_check_passed,
+    reviewedAt: apiData.reviewed_at,
   }
 }
 
@@ -154,6 +172,44 @@ export const applicationAPI = {
     return transformApplicationData(response.data)
   },
 
+  // Ministry Review API methods using existing /review endpoint
+  ministryReview: async (id: string, data: {
+    approved: boolean,
+    black_list_check: boolean,
+    rejection_reason?: string
+  }): Promise<Application> => {
+    console.log('Ministry review with data:', { id, data })
+    
+    // Create payload with only required fields based on approval status
+    const payload: any = {
+      approved: data.approved,
+      black_list_check: data.black_list_check
+    }
+    
+    // Only include rejection_reason for rejections
+    if (!data.approved && data.rejection_reason?.trim()) {
+      payload.rejection_reason = data.rejection_reason.trim()
+    }
+    
+    console.log('Sending payload:', payload)
+    console.log('API endpoint (PATCH):', `/applications/${id}/review`)
+    console.log('Base URL:', apiClient.defaults.baseURL)
+    console.log('Full URL will be:', `PATCH ${apiClient.defaults.baseURL}/applications/${id}/review`)
+    
+    try {
+      const response = await apiClient.patch(`/applications/${id}/review`, payload)
+      return transformApplicationData(response.data)
+    } catch (error: any) {
+      console.error('API Error details:', {
+        url: `${apiClient.defaults.baseURL}/applications/${id}/review`,
+        method: 'PATCH',
+        payload,
+        error: error.response?.data || error.message
+      })
+      throw error
+    }
+  },
+
   blacklist: async (id: string, remarks: string): Promise<Application> => {
     const response = await apiClient.post(`/applications/${id}/blacklist`, { remarks })
     return transformApplicationData(response.data)
@@ -176,47 +232,50 @@ export const applicationAPI = {
   },
 
   // New workflow endpoints
-  sendForVerification: async (id: string, data: { 
-    verification_type: 'INTELLIGENCE_BUREAU' | 'SPECIAL_BRANCH' | 'BOTH',
-    region?: string,
+  sendForVerification: async (id: string, data: {
+    agencies: string[]
+    verification_document?: File
     remarks?: string
   }): Promise<Application> => {
-    // Transform frontend data to backend API format
-    const agencies: string[] = []
+    console.log('Sending for verification:', {
+      id,
+      agencies: data.agencies,
+      hasDocument: !!data.verification_document,
+      remarks: data.remarks
+    })
+
+    // Create FormData for multipart request
+    const formData = new FormData()
     
-    if (data.verification_type === 'INTELLIGENCE_BUREAU') {
-      agencies.push('INTELLIGENCE_BUREAU')
-    } else if (data.verification_type === 'SPECIAL_BRANCH') {
-      if (data.region === 'PUNJAB') {
-        agencies.push('SPECIAL_BRANCH_PUNJAB')
-      } else if (data.region === 'SINDH') {
-        agencies.push('SPECIAL_BRANCH_SINDH')
+    // Add each agency as a separate field
+    data.agencies.forEach(agency => {
+      formData.append('agencies', agency)
+    })
+    
+    // Add verification document if provided
+    if (data.verification_document) {
+      formData.append('verification_document', data.verification_document)
+    }
+    
+    // Add remarks if provided
+    if (data.remarks?.trim()) {
+      formData.append('remarks', data.remarks.trim())
+    }
+
+    console.log('FormData entries:')
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File(${value.name}, ${value.size} bytes)`)
       } else {
-        // Default to Punjab if no specific region mapping
-        agencies.push('SPECIAL_BRANCH_PUNJAB')
-      }
-    } else if (data.verification_type === 'BOTH') {
-      agencies.push('INTELLIGENCE_BUREAU')
-      if (data.region === 'PUNJAB') {
-        agencies.push('SPECIAL_BRANCH_PUNJAB')
-      } else if (data.region === 'SINDH') {
-        agencies.push('SPECIAL_BRANCH_SINDH')
-      } else {
-        // Default to Punjab if no specific region mapping
-        agencies.push('SPECIAL_BRANCH_PUNJAB')
+        console.log(`${key}: ${value}`)
       }
     }
 
-    const payload: any = { agencies }
-    if (data.region) {
-      payload.region = data.region
-    }
-    if (data.remarks) {
-      payload.remarks = data.remarks
-    }
-
-    console.log('Sending verification payload:', payload)
-    const response = await apiClient.post(`/applications/${id}/send-for-verification`, payload)
+    const response = await apiClient.post(`/applications/${id}/send-for-verification`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
     return transformApplicationData(response.data)
   },
 
@@ -274,38 +333,36 @@ export const applicationAPI = {
       throw new Error('Remarks are required')
     }
     
-    // Handle file upload vs JSON payload
-    let response
+    // Always use FormData (multipart/form-data) format as per new API specification
+    const formData = new FormData()
+    formData.append('agency', userAgency || 'INTELLIGENCE_BUREAU')
+    formData.append('remarks', remarks)
     
+    // Add attachment if provided, otherwise it will be omitted from FormData
     if (data.attachment) {
-      // Use FormData for file upload
-      const formData = new FormData()
-      formData.append('agency', userAgency || 'INTELLIGENCE_BUREAU')
-      formData.append('remarks', remarks)
       formData.append('attachment', data.attachment)
-      formData.append('attachment_url', '') // Empty when uploading file
-      
       console.log('Submitting verification with file upload')
-      console.log('Agency:', userAgency)
-      console.log('Remarks:', remarks)
-      console.log('File:', data.attachment.name)
-      
-      response = await apiClient.post(`/applications/${id}/submit-verification`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      })
+      console.log('File:', data.attachment.name, 'Size:', data.attachment.size)
     } else {
-      // Use JSON payload when no file
-      const payload = {
-        agency: userAgency || 'INTELLIGENCE_BUREAU',
-        remarks: remarks,
-        attachment_url: 'no-attachment'
-      }
-      
-      console.log('Submitting verification without file:', payload)
-      response = await apiClient.post(`/applications/${id}/submit-verification`, payload)
+      console.log('Submitting verification without file attachment')
     }
+    
+    console.log('Agency:', userAgency)
+    console.log('Remarks:', remarks)
+    console.log('FormData entries:')
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File(${value.name}, ${value.size} bytes)`)
+      } else {
+        console.log(`${key}: ${value}`)
+      }
+    }
+    
+    const response = await apiClient.post(`/applications/${id}/submit-verification`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
     return transformApplicationData(response.data)
   },
 
@@ -323,5 +380,37 @@ export const applicationAPI = {
       responseType: 'blob',
     })
     return response.data
+  },
+
+  // Get all verification attachments for an application
+  getVerificationAttachments: async (id: string) => {
+    const response = await apiClient.get(`/applications/${id}/attachments`)
+    return response.data
+  },
+
+  // Download verification attachment for a specific agency
+  downloadVerificationAttachment: async (id: string, agency: string): Promise<Blob> => {
+    const response = await apiClient.get(`/applications/${id}/attachments/${agency}`, {
+      responseType: 'blob',
+    })
+    return response.data
+  },
+
+  // Get verification attachment URL for viewing
+  getVerificationAttachmentUrl: (id: string, agency: string): string => {
+    return `${apiClient.defaults.baseURL}/applications/${id}/attachments/${agency}`
+  },
+
+  // Download verification document (the PDF uploaded during send-for-verification)
+  downloadVerificationDocument: async (id: string): Promise<Blob> => {
+    const response = await apiClient.get(`/applications/${id}/verification-document`, {
+      responseType: 'blob',
+    })
+    return response.data
+  },
+
+  // Get verification document URL for viewing
+  getVerificationDocumentUrl: (id: string): string => {
+    return `${apiClient.defaults.baseURL}/applications/${id}/verification-document`
   },
 }

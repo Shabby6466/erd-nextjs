@@ -18,21 +18,21 @@ export const citizenSchema = z.object({
   pakistan_address: z.string().min(1, "Address is required").max(200, "Address too long"),
   birth_country: z.string({ required_error: "birth_country should not be empty", invalid_type_error: "birth_country must be a string" }).min(1, "birth_country should not be empty"),
   birth_city: z.string({ required_error: "birth_city should not be empty", invalid_type_error: "birth_city must be a string" }).min(1, "birth_city should not be empty"),
-  height: z.string(),
-  color_of_eyes: z.string().min(1, "Eye color is required"),
-  color_of_hair: z.string().min(1, "Hair color is required"),
-  departure_date: z.string().min(1, "Departure date is required"),
-  transport_mode: z.string().min(1, "Transport mode is required"),
+  height: z.string().optional(),
+  color_of_eyes: z.string().optional(),
+  color_of_hair: z.string().optional(),
+  departure_date: z.string().min(1,"departure date is required"),
+  transport_mode: z.string().optional(),
   requested_by: z.string({ required_error: "requested_by should not be empty", invalid_type_error: "requested_by must be a string" }).min(1, "requested_by should not be empty"),
-  reason_for_deport: z.string({ required_error: "reason_for_deport should not be empty", invalid_type_error: "reason_for_deport must be a string" }).min(1, "reason_for_deport should not be empty"),
+  reason_for_deport: z.string({invalid_type_error: "reason_for_deport must be a string" }).optional(),
   amount: z
     .coerce.number({ invalid_type_error: "amount must be a number conforming to the specified constraints" })
-    .min(0, "amount must be a number conforming to the specified constraints"),
-  currency: z.string({ required_error: "currency should not be empty", invalid_type_error: "currency must be a string" }).min(1, "currency should not be empty"),
+    .optional(),
+  currency: z.string({ invalid_type_error: "currency must be a string" }).optional(),
   is_fia_blacklist: z.coerce.boolean().default(false),
   status: z.string().optional().default("DRAFT"),
-  investor:z.string().min(1, "Investor is required"),
-  securityDeposit:z.string()
+  investor:z.string().optional(),
+  securityDeposit:z.string().optional()
 })
 
 export type CitizenFormData = z.infer<typeof citizenSchema>

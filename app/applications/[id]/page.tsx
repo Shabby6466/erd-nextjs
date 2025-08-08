@@ -11,10 +11,12 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Printer, Upload, CheckCircle, XCircle, AlertTriangle, Send } from "lucide-react"
+import { ArrowLeft, Printer, Upload, CheckCircle, XCircle, AlertTriangle, Send, FileText, Eye, Download } from "lucide-react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { SendForVerificationModal } from "@/components/ministry/SendForVerificationModal"
 import { SubmitVerificationModal } from "@/components/agency/SubmitVerificationModal"
+import { MinistryReviewModal } from "@/components/ministry/MinistryReviewModal"
+import { PDFLink } from "@/components/ui/PDFViewer"
 
 
 
@@ -29,6 +31,7 @@ export default function ApplicationViewPage() {
   const [isActionLoading, setIsActionLoading] = useState<boolean>(false)
   const [showSendForVerificationModal, setShowSendForVerificationModal] = useState(false)
   const [showSubmitVerificationModal, setShowSubmitVerificationModal] = useState(false)
+  const [showMinistryReviewModal, setShowMinistryReviewModal] = useState(false)
 
   const role: UserRole | undefined = user?.role as UserRole | undefined
   console.log('User role:', role)
@@ -117,6 +120,46 @@ export default function ApplicationViewPage() {
       await refresh()
     } catch {
       showNotification.error("Failed to reject application")
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
+
+  // New Ministry Review handlers
+  const handleMinistryReviewApprove = async (data: { approved: boolean; black_list_check: boolean }) => {
+    if (!application) return
+    setIsActionLoading(true)
+    try {
+      await applicationAPI.ministryReview(application.id, {
+        approved: true,
+        black_list_check: data.black_list_check
+      })
+      showNotification.success("Application approved successfully")
+      await refresh()
+    } catch (error) {
+      const message = (error as any)?.response?.data?.message || "Failed to approve application"
+      showNotification.error(message)
+      throw error // Re-throw to handle in modal
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
+
+  const handleMinistryReviewReject = async (data: { approved: boolean; black_list_check: boolean; rejection_reason: string }) => {
+    if (!application) return
+    setIsActionLoading(true)
+    try {
+      await applicationAPI.ministryReview(application.id, {
+        approved: false,
+        black_list_check: data.black_list_check,
+        rejection_reason: data.rejection_reason
+      })
+      showNotification.success("Application rejected")
+      await refresh()
+    } catch (error) {
+      const message = (error as any)?.response?.data?.message || "Failed to reject application"
+      showNotification.error(message)
+      throw error // Re-throw to handle in modal
     } finally {
       setIsActionLoading(false)
     }
@@ -227,8 +270,8 @@ export default function ApplicationViewPage() {
   }
 
   const handleSendForVerification = async (data: {
-    verification_type: 'INTELLIGENCE_BUREAU' | 'SPECIAL_BRANCH' | 'BOTH'
-    region?: string
+    agencies: string[]
+    verification_document?: File
     remarks?: string
   }) => {
     if (!application) return
@@ -403,7 +446,10 @@ export default function ApplicationViewPage() {
                 <GridItem label="Created At" value={formatDate(application.createdAt)} />
                 <GridItem label="Last Updated" value={formatDate(application.updatedAt)} />
                 {application.createdBy?.fullName && (
-                  <GridItem label="Created By" value={`${application.createdBy.fullName} (${application.createdBy.role})`} />
+                  <GridItem 
+                    label="Created By" 
+                    value={`${application.createdBy.fullName}${application.createdBy.state ? ` (${application.createdBy.state})` : ` (${application.createdBy.role})`}`} 
+                  />
                 )}
                 {application.reviewedByUser?.fullName && (
                   <GridItem label="Reviewed By" value={`${application.reviewedByUser.fullName} (${application.reviewedByUser.role})`} />
@@ -411,6 +457,31 @@ export default function ApplicationViewPage() {
               </div>
             </Section>
           </div>
+
+          {/* ETD Information - Only show for approved applications */}
+          {application.status === "APPROVED" && (application.etdIssueDate || application.etdExpiryDate || application.blacklistCheckPassed !== undefined) && (
+            <div className="mt-6">
+              <Section title="Emergency Travel Document (ETD) Information">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {application.etdIssueDate && (
+                    <GridItem label="ETD Issue Date" value={formatDate(application.etdIssueDate)} />
+                  )}
+                  {application.etdExpiryDate && (
+                    <GridItem label="ETD Expiry Date" value={formatDate(application.etdExpiryDate)} />
+                  )}
+                  {application.blacklistCheckPassed !== undefined && (
+                    <GridItem 
+                      label="Blacklist Check Status" 
+                      value={application.blacklistCheckPassed ? "Passed" : "Failed (Still Approved)"} 
+                    />
+                  )}
+                  {application.reviewedAt && (
+                    <GridItem label="Reviewed At" value={formatDateTime(application.reviewedAt)} />
+                  )}
+                </div>
+              </Section>
+            </div>
+          )}
 
           {/* Agency Verification Remarks - Only visible to Ministry and Admin */}
           {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_RECEIVED" && application.agencyRemarks && application.agencyRemarks.length > 0 && (
@@ -427,18 +498,50 @@ export default function ApplicationViewPage() {
                         <GridItem label="Remarks" value={remark.remarks || 'No remarks provided'} />
                       </div>
                       {remark.attachmentUrl && (
-                        <div className="mt-3">
-                          <div>
-                            <div className="text-sm text-gray-600">Attachment</div>
-                            <div className="text-sm text-gray-900">
-                              <a 
-                                href={remark.attachmentUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 underline"
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-blue-600" />
+                              <span className="text-sm font-medium text-blue-800">PDF Attachment</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <PDFLink 
+                                url=""
+                                fileName={`verification-${remark.agency}-${remark.submittedAt}.pdf`}
+                                className="text-blue-600 hover:text-blue-800"
+                                applicationId={params.id as string}
+                                agency={remark.agency}
                               >
-                                View Attachment
-                              </a>
+                              </PDFLink>
+                              <span className="text-gray-400">|</span>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const blob = await applicationAPI.downloadVerificationAttachment(
+                                      params.id as string, 
+                                      remark.agency
+                                    )
+                                    const downloadUrl = URL.createObjectURL(blob)
+                                    
+                                    const link = document.createElement('a')
+                                    link.href = downloadUrl
+                                    link.download = `verification-${remark.agency}-${remark.submittedAt}.pdf`
+                                    document.body.appendChild(link)
+                                    link.click()
+                                    document.body.removeChild(link)
+                                    
+                                    // Clean up the blob URL
+                                    setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000)
+                                  } catch (error) {
+                                    console.error('Download failed:', error)
+                                    showNotification.error('Failed to download file')
+                                  }
+                                }}
+                                className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                              >
+                                <Download className="h-4 w-4" />
+                                Download
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -504,6 +607,52 @@ export default function ApplicationViewPage() {
         </CardContent>
       </Card> */}
 
+      {/* Verification Document - For Agency Users */}
+      {role === "AGENCY" && application.status === "PENDING_VERIFICATION" && application.verificationDocumentUrl && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Verification Document</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-3">
+                <FileText className="h-8 w-8 text-blue-600" />
+                <div>
+                  <h4 className="font-medium text-blue-900">PDF Attachment</h4>
+                  <p className="text-sm text-blue-700">Verification document from Ministry</p>
+                </div>
+              </div>
+              <Button
+                onClick={async () => {
+                  try {
+                    const blob = await applicationAPI.downloadVerificationDocument(application.id)
+                    const url = URL.createObjectURL(blob)
+                    
+                    const link = document.createElement('a')
+                    link.href = url
+                    link.download = `verification-document-${application.id.substring(0, 8)}.pdf`
+                    document.body.appendChild(link)
+                    link.click()
+                    document.body.removeChild(link)
+                    
+                    setTimeout(() => URL.revokeObjectURL(url), 1000)
+                  } catch (error) {
+                    console.error('Download failed:', error)
+                    showNotification.error('Failed to download document')
+                  }
+                }}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {canPerformAction && (
         <Card>
           <CardHeader>
@@ -557,11 +706,12 @@ export default function ApplicationViewPage() {
               {/* Ministry Actions for VERIFICATION_RECEIVED Applications */}
               {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_RECEIVED" && (
                 <>
-                  <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
-                    <CheckCircle className="mr-2 h-4 w-4" /> Approve
-                  </Button>
-                  <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
-                    <XCircle className="mr-2 h-4 w-4" /> Reject
+                  <Button 
+                    onClick={() => setShowMinistryReviewModal(true)} 
+                    disabled={isActionLoading}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <CheckCircle className="mr-2 h-4 w-4" /> Review Application
                   </Button>
                 </>
               )}
@@ -609,6 +759,15 @@ export default function ApplicationViewPage() {
       isOpen={showSubmitVerificationModal}
       onClose={() => setShowSubmitVerificationModal(false)}
       onSubmit={handleSubmitVerification}
+      isLoading={isActionLoading}
+      applicationId={application?.id}
+    />
+
+    <MinistryReviewModal
+      isOpen={showMinistryReviewModal}
+      onClose={() => setShowMinistryReviewModal(false)}
+      onApprove={handleMinistryReviewApprove}
+      onReject={handleMinistryReviewReject}
       isLoading={isActionLoading}
     />
     </div>

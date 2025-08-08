@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { X, Upload } from "lucide-react"
+import { X, Upload, FileText, Download } from "lucide-react"
+import { applicationAPI } from "@/lib/api/applications"
+import { showNotification } from "@/lib/utils/notifications"
 
 interface SubmitVerificationModalProps {
   isOpen: boolean
@@ -16,13 +18,15 @@ interface SubmitVerificationModalProps {
     attachment?: File
   }) => Promise<void>
   isLoading?: boolean
+  applicationId?: string
 }
 
 export function SubmitVerificationModal({
   isOpen,
   onClose,
   onSubmit,
-  isLoading = false
+  isLoading = false,
+  applicationId
 }: SubmitVerificationModalProps) {
   const [remarks, setRemarks] = useState<string>('')
   const [attachment, setAttachment] = useState<File | null>(null)
@@ -101,6 +105,48 @@ export function SubmitVerificationModal({
           </div>
         </CardHeader>
         <CardContent>
+          {/* Verification Document Download Section */}
+          {applicationId && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-6 w-6 text-blue-600" />
+                  <div>
+                    <h4 className="font-medium text-blue-900 text-sm">Verification Document</h4>
+                    <p className="text-xs text-blue-700">Download the verification document from Ministry</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const blob = await applicationAPI.downloadVerificationDocument(applicationId)
+                      const url = URL.createObjectURL(blob)
+                      
+                      const link = document.createElement('a')
+                      link.href = url
+                      link.download = `verification-document-${applicationId.substring(0, 8)}.pdf`
+                      document.body.appendChild(link)
+                      link.click()
+                      document.body.removeChild(link)
+                      
+                      setTimeout(() => URL.revokeObjectURL(url), 1000)
+                    } catch (error) {
+                      console.error('Download failed:', error)
+                      showNotification.error('Failed to download verification document')
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1 text-xs"
+                >
+                  <Download className="h-3 w-3" />
+                  Download
+                </Button>
+              </div>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="remarks">Verification Remarks *</Label>

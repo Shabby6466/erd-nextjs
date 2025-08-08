@@ -21,7 +21,9 @@ import {
   Send, 
   CheckCircle, 
   XCircle, 
-  AlertTriangle 
+  AlertTriangle,
+  FileText,
+  Download
 } from "lucide-react"
 import { Application, Region, UserRole } from "@/lib/types"
 import { formatDate, formatStatus, getStatusVariant } from "@/lib/utils/formatting"
@@ -130,6 +132,9 @@ export function ApplicationsTable({
                 <th className="text-left p-3 font-medium">CNIC</th>
                 <th className="text-left p-3 font-medium">Status</th>
                 <th className="text-left p-3 font-medium">Created</th>
+                {userRole === 'AGENCY' && (
+                  <th className="text-left p-3 font-medium">Verification Document</th>
+                )}
                 <th className="text-left p-3 font-medium">Actions</th>
               </tr>
             </thead>
@@ -175,6 +180,60 @@ export function ApplicationsTable({
                   <td className="p-3 text-sm text-gray-500">
                     {formatDate(application.createdAt)}
                   </td>
+                  {userRole === 'AGENCY' && (
+                    <td className="p-3">
+                      {application.verificationDocumentUrl ? (
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-blue-600" />
+                          <button
+                            onClick={async () => {
+                              try {
+                                const blob = await applicationAPI.downloadVerificationDocument(application.id)
+                                const url = URL.createObjectURL(blob)
+                                window.open(url, '_blank')
+                                
+                                setTimeout(() => URL.revokeObjectURL(url), 1000)
+                              } catch (error) {
+                                console.error('View failed:', error)
+                                showNotification.error('Failed to view document')
+                              }
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                          >
+                            <FileText className="h-3 w-3" />
+                            View PDF
+                          </button>
+                          <span className="text-gray-400">|</span>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const blob = await applicationAPI.downloadVerificationDocument(application.id)
+                                const url = URL.createObjectURL(blob)
+                                
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.download = `verification-document-${application.id.substring(0, 8)}.pdf`
+                                document.body.appendChild(link)
+                                link.click()
+                                document.body.removeChild(link)
+                                
+                                setTimeout(() => URL.revokeObjectURL(url), 1000)
+                              } catch (error) {
+                                console.error('Download failed:', error)
+                                showNotification.error('Failed to download document')
+                              }
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">No document</span>
+                      )}
+                    </td>
+                  )}
                   <td className="p-3">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

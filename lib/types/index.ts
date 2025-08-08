@@ -68,6 +68,12 @@ export interface Application {
   rejectionReason?: string
   verificationSentAt?: string
   verificationCompletedAt?: string
+  verificationDocumentUrl?: string
+  // ETD fields
+  etdIssueDate?: string
+  etdExpiryDate?: string
+  blacklistCheckPassed?: boolean
+  reviewedAt?: string
 }
 
 export interface ApplicationAttachment {
