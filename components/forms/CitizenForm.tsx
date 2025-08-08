@@ -49,7 +49,6 @@ export function CitizenForm() {
       amount: 0,
       currency: "",
       // is_fia_blacklist: false,
-      status: "DRAFT",
     },
   })
 
@@ -75,7 +74,12 @@ export function CitizenForm() {
   const onSubmit = async (data: CitizenFormData) => {
     setIsLoading(true)
     try {
-      const application = await applicationAPI.create(data)
+      // Ensure status is always set to DRAFT for new applications
+      const applicationData = {
+        ...data,
+        status: "DRAFT"
+      }
+      const application = await applicationAPI.create(applicationData)
       showNotification.success("Application created successfully")
       
       // Navigate based on user role
@@ -116,14 +120,17 @@ export function CitizenForm() {
                   <Label htmlFor="citizen_id">Citizen ID</Label>
                   <Input
                     id="citizen_id"
-                    placeholder="Enter 12-digit citizen ID"
+                    placeholder="Enter 13-digit citizen ID"
+                    maxLength={13}
+                    pattern="\d{13}"
+                    inputMode="numeric"
                     {...form.register("citizen_id")}
                   />
                 </div>
                 <Button
                   type="button"
                   onClick={handleGetData}
-                  disabled={isFetchingData || !/^\d{12}$/.test(form.watch("citizen_id"))}
+                  disabled={isFetchingData || !/^\d{13}$/.test(form.watch("citizen_id"))}
                   className="mt-6"
                 >
                   {isFetchingData ? "Fetching..." : "Get Data"}
@@ -240,10 +247,7 @@ export function CitizenForm() {
                   <Label htmlFor="is_fia_blacklist">FIA Blacklist</Label>
                   <Input id="is_fia_blacklist" type="checkbox" {...form.register("is_fia_blacklist")} />
                 </div> */}
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Input id="status" {...form.register("status")} />
-                </div>
+
               </div>
 
               {/* Submit Button */}

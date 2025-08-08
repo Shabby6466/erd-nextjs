@@ -2,9 +2,9 @@ import { z } from "zod"
 
 export const citizenSchema = z.object({
   citizen_id: z
-    .string({ invalid_type_error: "citizen_id must be a 12-digit number string", required_error: "citizen_id must be a 12-digit number string" })
-    .max(12, "citizen_id must be shorter than or equal to 12 characters")
-    .refine((value) => /^\d{12}$/.test(value), "citizen_id must be a 12-digit number string"),
+    .string({ invalid_type_error: "citizen_id must be a 13-digit number string", required_error: "citizen_id must be a 13-digit number string" })
+    .length(13, "citizen_id must be exactly 13 digits")
+    .refine((value) => /^\d{13}$/.test(value), "citizen_id must be a 13-digit number string"),
   first_name: z.string().min(1, "First name is required").max(50, "First name too long"),
   last_name: z.string().min(1, "Last name is required").max(50, "Last name too long"),
   father_name: z.string().min(1, "Father's name is required").max(100, "Father's name too long"),
@@ -29,7 +29,7 @@ export const citizenSchema = z.object({
     .min(0, "amount must be a number conforming to the specified constraints"),
   currency: z.string({ required_error: "currency should not be empty", invalid_type_error: "currency must be a string" }).min(1, "currency should not be empty"),
   is_fia_blacklist: z.coerce.boolean().default(false),
-  status: z.string().default("DRAFT"),
+  status: z.string().optional().default("DRAFT"),
   investor:z.string().min(1, "Investor is required"),
   securityDeposit:z.string()
 })
