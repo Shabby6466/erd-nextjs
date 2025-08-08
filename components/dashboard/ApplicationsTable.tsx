@@ -39,6 +39,7 @@ interface ApplicationsTableProps {
   onSendToAgency?: (id: string, region: Region) => Promise<void>
   onUploadAttachment?: (id: string) => void
   onPrint?: (id: string) => void
+  onSubmitVerification?: (id: string, remarks: string, attachment?: File) => Promise<void>
 }
 
 export function ApplicationsTable({ 
@@ -51,7 +52,8 @@ export function ApplicationsTable({
   onBlacklist,
   onSendToAgency,
   onUploadAttachment,
-  onPrint
+  onPrint,
+  onSubmitVerification
 }: ApplicationsTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const router = useRouter()
@@ -186,8 +188,21 @@ export function ApplicationsTable({
                           </DropdownMenuItem>
                         )}
 
-                        {/* Agency Actions */}
-                        {userRole === 'AGENCY' && canPerformAction(application) && (
+                        {/* Agency Actions - Verification Workflow */}
+                        {userRole === 'AGENCY' && application.status === 'PENDING_VERIFICATION' && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const remarks = prompt('Enter verification remarks:')
+                              if (remarks) onSubmitVerification?.(application.id, remarks)
+                            }}
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            Submit Verification
+                          </DropdownMenuItem>
+                        )}
+
+                        {/* Legacy Agency Actions (for backward compatibility) */}
+                        {userRole === 'AGENCY' && ['SUBMITTED', 'AGENCY_REVIEW'].includes(application.status) && (
                           <>
                             <DropdownMenuItem
                               onClick={() => onUploadAttachment?.(application.id)}

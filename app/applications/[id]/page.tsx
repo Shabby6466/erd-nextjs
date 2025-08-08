@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Application, Region, UserRole } from "@/lib/types"
 import { applicationAPI } from "@/lib/api/applications"
 import { attachmentAPI } from "@/lib/api/attachments"
-import { formatDate, formatStatus, getStatusVariant } from "@/lib/utils/formatting"
+import { formatDate, formatDateTime, formatStatus, getStatusVariant } from "@/lib/utils/formatting"
 import { showNotification } from "@/lib/utils/notifications"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import { ArrowLeft, Printer, Upload, CheckCircle, XCircle, AlertTriangle, Send }
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { SendForVerificationModal } from "@/components/ministry/SendForVerificationModal"
 import { SubmitVerificationModal } from "@/components/agency/SubmitVerificationModal"
+
 
 
 
@@ -30,7 +31,8 @@ export default function ApplicationViewPage() {
   const [showSubmitVerificationModal, setShowSubmitVerificationModal] = useState(false)
 
   const role: UserRole | undefined = user?.role as UserRole | undefined
-  console.log(role)
+  console.log('User role:', role)
+  console.log('Application status:', application?.status)
   const canPerformAction = useMemo(() => {
     if (!application) return false
     const status = application.status
@@ -38,15 +40,17 @@ export default function ApplicationViewPage() {
       case "MISSION_OPERATOR":
         return status === "DRAFT"
       case "AGENCY":
-        return ["SUBMITTED", "AGENCY_REVIEW"].includes(status)
+        return ["SUBMITTED", "AGENCY_REVIEW", "PENDING_VERIFICATION"].includes(status)
       case "MINISTRY":
-        return ["SUBMITTED", "MINISTRY_REVIEW", "AGENCY_REVIEW"].includes(status)
+        return ["DRAFT", "SUBMITTED", "MINISTRY_REVIEW", "AGENCY_REVIEW", "VERIFICATION_SUBMITTED", "VERIFICATION_RECEIVED"].includes(status)
       case "ADMIN":
         return true
       default:
         return false
     }
   }, [application, role])
+
+  console.log('Can perform action:', canPerformAction)
 
   const canPrint = useMemo(() => {
     if (!application) return false
@@ -122,7 +126,15 @@ export default function ApplicationViewPage() {
     if (!application) return
     setIsActionLoading(true)
     try {
-      await applicationAPI.ministryApprove(application.id)
+      // Use new status update API for VERIFICATION_RECEIVED status
+      if (application.status === "VERIFICATION_RECEIVED") {
+        await applicationAPI.updateStatus(application.id, {
+          status: "APPROVED"
+        })
+      } else {
+        // Use legacy API for other statuses
+        await applicationAPI.ministryApprove(application.id)
+      }
       showNotification.success("Application approved")
       await refresh()
     } catch {
@@ -134,11 +146,20 @@ export default function ApplicationViewPage() {
 
   const handleMinistryReject = async () => {
     if (!application) return
-    const remarks = window.prompt("Enter rejection remarks:")
-    if (!remarks) return
+    const rejectionReason = window.prompt("Enter rejection reason:")
+    if (!rejectionReason) return
     setIsActionLoading(true)
     try {
-      await applicationAPI.ministryReject(application.id, remarks)
+      // Use new status update API for VERIFICATION_RECEIVED status
+      if (application.status === "VERIFICATION_RECEIVED") {
+        await applicationAPI.updateStatus(application.id, {
+          status: "REJECTED",
+          rejection_reason: rejectionReason
+        })
+      } else {
+        // Use legacy API for other statuses
+        await applicationAPI.ministryReject(application.id, rejectionReason)
+      }
       showNotification.success("Application rejected")
       await refresh()
     } catch {
@@ -253,7 +274,7 @@ export default function ApplicationViewPage() {
       setIsActionLoading(true)
       await applicationAPI.updateStatus(application.id, {
         status: 'REJECTED',
-        remarks
+        rejection_reason: remarks
       })
       showNotification.success("Application rejected")
       await refresh()
@@ -373,10 +394,48 @@ export default function ApplicationViewPage() {
               </div>
             </Section>
           </div>
+
+          {/* Agency Verification Remarks - Only visible to Ministry and Admin */}
+          {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_RECEIVED" && application.agencyRemarks && application.agencyRemarks.length > 0 && (
+            <div className="mt-6">
+              <Section title="Agency Verification Results">
+                <div className="space-y-4">
+                  {application.agencyRemarks.map((remark: any, index: number) => (
+                    <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <GridItem label="Agency" value={remark.agency || 'Unknown'} />
+                        <GridItem label="Submitted At" value={remark.submittedAt ? formatDateTime(remark.submittedAt) : 'N/A'} />
+                      </div>
+                      <div className="mt-3">
+                        <GridItem label="Remarks" value={remark.remarks || 'No remarks provided'} />
+                      </div>
+                      {remark.attachmentUrl && (
+                        <div className="mt-3">
+                          <div>
+                            <div className="text-sm text-gray-600">Attachment</div>
+                            <div className="text-sm text-gray-900">
+                              <a 
+                                href={remark.attachmentUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline"
+                              >
+                                View Attachment
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Attachments</CardTitle>
         </CardHeader>
@@ -426,7 +485,7 @@ export default function ApplicationViewPage() {
             )}
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {canPerformAction && (
         <Card>
@@ -435,7 +494,15 @@ export default function ApplicationViewPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
-              {role === "AGENCY" && (
+              {/* Agency Actions for Verification */}
+              {role === "AGENCY" && application.status === "PENDING_VERIFICATION" && (
+                <Button onClick={() => setShowSubmitVerificationModal(true)} disabled={isActionLoading}>
+                  <Upload className="mr-2 h-4 w-4" /> Submit Verification
+                </Button>
+              )}
+
+              {/* Legacy Agency Actions (for old workflow) */}
+              {role === "AGENCY" && ["SUBMITTED", "AGENCY_REVIEW"].includes(application.status) && (
                 <>
                   <Button onClick={handleAgencyApprove} disabled={isActionLoading}>
                     <CheckCircle className="mr-2 h-4 w-4" /> Approve & Send to Ministry
@@ -446,44 +513,62 @@ export default function ApplicationViewPage() {
                 </>
               )}
 
-              {role === "AGENCY" && application.status === "UNDER_VERIFICATION" && (
-                <Button onClick={() => setShowSubmitVerificationModal(true)} disabled={isActionLoading}>
-                  <Upload className="mr-2 h-4 w-4" /> Submit Verification
-                </Button>
-              )}
-
-              {(role === "MINISTRY" || role === "ADMIN") && (
+              {/* Ministry Actions for DRAFT Applications */}
+              {(role === "MINISTRY" || role === "ADMIN") && application.status === "DRAFT" && (
                 <>
-                  {application.status === "DRAFT" && (
-                    <>
-                      <Button onClick={() => setShowSendForVerificationModal(true)} disabled={isActionLoading}>
-                        <Send className="mr-2 h-4 w-4" /> Send for Verification
-                      </Button>
-                      <Button onClick={handleDirectReject} variant="destructive" disabled={isActionLoading}>
-                        <XCircle className="mr-2 h-4 w-4" /> Reject
-                      </Button>
-                    </>
-                  )}
-                  
-                  {application.status !== "DRAFT" && (
-                    <>
-                      <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
-                        <CheckCircle className="mr-2 h-4 w-4" /> Approve
-                      </Button>
-                      <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
-                        <XCircle className="mr-2 h-4 w-4" /> Reject
-                      </Button>
-                      <Button onClick={handleBlacklist} variant="destructive" disabled={isActionLoading}>
-                        <AlertTriangle className="mr-2 h-4 w-4" /> Blacklist
-                      </Button>
-                      <Button onClick={handleSendToAgency} variant="secondary" disabled={isActionLoading}>
-                        <Send className="mr-2 h-4 w-4" /> Send to Agency
-                      </Button>
-                    </>
-                  )}
+                  <Button onClick={() => setShowSendForVerificationModal(true)} disabled={isActionLoading}>
+                    <Send className="mr-2 h-4 w-4" /> Send for Verification
+                  </Button>
+                  <Button onClick={handleDirectReject} variant="destructive" disabled={isActionLoading}>
+                    <XCircle className="mr-2 h-4 w-4" /> Reject
+                  </Button>
+                </>
+              )}
+              
+              {/* Ministry Actions for VERIFICATION_SUBMITTED Applications */}
+              {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_SUBMITTED" && (
+                <>
+                  <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
+                    <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                  </Button>
+                  <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
+                    <XCircle className="mr-2 h-4 w-4" /> Reject
+                  </Button>
                 </>
               )}
 
+              {/* Ministry Actions for VERIFICATION_RECEIVED Applications */}
+              {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_RECEIVED" && (
+                <>
+                  <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
+                    <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                  </Button>
+                  <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
+                    <XCircle className="mr-2 h-4 w-4" /> Reject
+                  </Button>
+                </>
+              )}
+
+              {/* Ministry Actions for Other Statuses (Legacy workflow) */}
+              {(role === "MINISTRY" || role === "ADMIN") && 
+               ["SUBMITTED", "UNDER_REVIEW", "AGENCY_REVIEW", "MINISTRY_REVIEW"].includes(application.status) && (
+                <>
+                  <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
+                    <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                  </Button>
+                  <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
+                    <XCircle className="mr-2 h-4 w-4" /> Reject
+                  </Button>
+                  <Button onClick={handleBlacklist} variant="destructive" disabled={isActionLoading}>
+                    <AlertTriangle className="mr-2 h-4 w-4" /> Blacklist
+                  </Button>
+                  <Button onClick={handleSendToAgency} variant="secondary" disabled={isActionLoading}>
+                    <Send className="mr-2 h-4 w-4" /> Send to Agency
+                  </Button>
+                </>
+              )}
+
+              {/* Mission Operator Print Action */}
               {role === "MISSION_OPERATOR" && canPrint && (
                 <Button onClick={handlePrintApplication} disabled={isActionLoading}>
                   <Printer className="mr-2 h-4 w-4" /> Print Application

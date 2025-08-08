@@ -60,6 +60,13 @@ export interface Application {
     fullName: string
     role: string
   }
+  // New verification fields
+  pendingVerificationAgencies?: string[]
+  verificationCompletedAgencies?: string[]
+  agencyRemarks?: any[]
+  rejectionReason?: string
+  verificationSentAt?: string
+  verificationCompletedAt?: string
 }
 
 export interface ApplicationAttachment {
@@ -86,7 +93,9 @@ export type ApplicationStatus =
   | 'SUBMITTED' 
   | 'UNDER_REVIEW' 
   | 'UNDER_VERIFICATION'
+  | 'PENDING_VERIFICATION'
   | 'VERIFICATION_SUBMITTED'
+  | 'VERIFICATION_RECEIVED'
   | 'AGENCY_REVIEW'
   | 'MINISTRY_REVIEW'
   | 'APPROVED' 

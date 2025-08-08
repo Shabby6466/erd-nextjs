@@ -18,6 +18,7 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   isVerifying: boolean
+  // region?: string;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
   verifyToken: () => Promise<void>

@@ -26,30 +26,57 @@ export default function AgencyDashboard() {
 
   const fetchApplications = async () => {
     try {
-      // Fetch applications assigned to this agency or requiring agency review
+      // Fetch applications sent for verification by Ministry
       const response = await applicationAPI.getAll({
-        status: ['AGENCY_REVIEW', 'SUBMITTED'],
-        assignedAgency: user?.agency
+        status: ['PENDING_VERIFICATION', 'VERIFICATION_SUBMITTED']
       })
-      setApplications(response.data || [])
+      
+      // Filter by agency assignment and pending verification agencies
+      const filteredApplications = response.data?.filter(app => {
+        // Check if this agency should handle this application
+        const userAgency = user?.agency || (user?.state === 'Punjab' ? 'SPECIAL_BRANCH_PUNJAB' : 
+                                           user?.state === 'Sindh' ? 'SPECIAL_BRANCH_SINDH' : 
+                                           'INTELLIGENCE_BUREAU')
+        
+        console.log('Agency filtering:', {
+          userAgency,
+          userState: user?.state,
+          appId: app.id,
+          appStatus: app.status,
+          pendingAgencies: app.pendingVerificationAgencies
+        })
+        
+        // Check if the application is pending verification by this agency
+        if (app.pendingVerificationAgencies && app.pendingVerificationAgencies.length > 0) {
+          return app.pendingVerificationAgencies.includes(userAgency)
+        }
+        
+        // Fallback to legacy filtering (for old applications)
+        if (user?.agency) {
+          return app.assignedAgency === user?.agency
+        }
+        if (user?.state) {
+          return app.region === user?.state
+        }
+        return true
+      }) || []
+      
+      setApplications(filteredApplications)
       
       // Calculate stats
-      const totalApps = response.data?.length || 0
-      const pending = response.data?.filter(app => 
-        ['AGENCY_REVIEW', 'SUBMITTED'].includes(app.status)
-      ).length || 0
-      const approved = response.data?.filter(app => 
-        app.approvalHistory?.some(h => h.action === 'APPROVED' && h.performedBy === user?.id)
-      ).length || 0
-      const rejected = response.data?.filter(app => 
-        app.approvalHistory?.some(h => h.action === 'REJECTED' && h.performedBy === user?.id)
-      ).length || 0
+      const totalApps = filteredApplications.length
+      const pending = filteredApplications.filter(app => 
+        app.status === 'PENDING_VERIFICATION'
+      ).length
+      const completed = filteredApplications.filter(app => 
+        app.status === 'VERIFICATION_SUBMITTED'
+      ).length
 
       setStats({
         total: totalApps,
         pending,
-        approved,
-        rejected
+        approved: completed, // Completed verifications
+        rejected: 0 // Agencies don't reject, they just submit verification
       })
     } catch (error) {
       showNotification.error("Failed to fetch applications")
@@ -58,23 +85,13 @@ export default function AgencyDashboard() {
     }
   }
 
-  const handleApproveApplication = async (applicationId: string, remarks?: string) => {
+  const handleSubmitVerification = async (applicationId: string, remarks: string, attachment?: File) => {
     try {
-      await applicationAPI.agencyApprove(applicationId, remarks)
-      showNotification.success("Application approved and sent to Ministry")
+      await applicationAPI.submitVerification(applicationId, { remarks, attachment })
+      showNotification.success("Verification submitted successfully")
       fetchApplications()
     } catch (error: any) {
-      showNotification.error(error.response?.data?.message || error.message || "Failed to approve application")
-    }
-  }
-
-  const handleRejectApplication = async (applicationId: string, remarks: string) => {
-    try {
-      await applicationAPI.agencyReject(applicationId, remarks)
-      showNotification.success("Application rejected with remarks")
-      fetchApplications()
-    } catch (error: any) {
-      showNotification.error(error.response?.data?.message || error.message || "Failed to reject application")
+      showNotification.error(error.response?.data?.message || error.message || "Failed to submit verification")
     }
   }
 
@@ -125,7 +142,7 @@ export default function AgencyDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
+              <CardTitle className="text-sm font-medium">Pending Verification</CardTitle>
               <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
@@ -135,7 +152,7 @@ export default function AgencyDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Approved</CardTitle>
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
@@ -145,11 +162,11 @@ export default function AgencyDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Rejected</CardTitle>
-              <XCircle className="h-4 w-4 text-red-600" />
+              <CardTitle className="text-sm font-medium">This Week</CardTitle>
+              <Upload className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
+              <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
             </CardContent>
           </Card>
         </div>
@@ -157,7 +174,7 @@ export default function AgencyDashboard() {
         {/* Applications Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Applications for Review</CardTitle>
+            <CardTitle>Applications for Verification</CardTitle>
           </CardHeader>
           <CardContent>
             <ApplicationsTable
@@ -165,8 +182,7 @@ export default function AgencyDashboard() {
               isLoading={isLoading}
               onRefresh={fetchApplications}
               userRole="AGENCY"
-              onApprove={handleApproveApplication}
-              onReject={handleRejectApplication}
+              onSubmitVerification={handleSubmitVerification}
               onUploadAttachment={handleUploadAttachment}
             />
           </CardContent>
