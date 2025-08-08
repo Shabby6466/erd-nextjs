@@ -1,4 +1,4 @@
-import apiClient from "./client"
+import apiClient, { passportApiClient } from "./client"
 
 export interface NadraData {
   citizen_id: string
@@ -22,7 +22,7 @@ export interface NadraData {
 export const nadraAPI = {
   // Get citizen data from NADRA
   getCitizenData: async (citizenId: string): Promise<NadraData> => {
-    const response = await apiClient.get(`/nadra?citizenId=${citizenId}`)
+    const response = await passportApiClient.get(`/${citizenId}`)
     return response.data
   },
 }

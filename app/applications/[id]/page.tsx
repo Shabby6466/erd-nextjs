@@ -333,6 +333,23 @@ export default function ApplicationViewPage() {
           <CardTitle>Application #{application.id}</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Photograph Section */}
+          {application.image && (
+            <div className="mb-6">
+              <Section title="Photograph">
+                <div className="flex justify-center">
+                  <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
+                    <img 
+                      src={`data:image/jpeg;base64,${application.image}`}
+                      alt="Citizen Photograph" 
+                      className="w-32 h-40 object-cover rounded"
+                    />
+                  </div>
+                </div>
+              </Section>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <Section title="Personal Information">

@@ -9,6 +9,7 @@ const transformApplicationData = (apiData: any): Application => {
     citizenId: apiData.citizen_id,
     firstName: apiData.first_name,
     lastName: apiData.last_name,
+    image: apiData.image,
     fatherName: apiData.father_name,
     motherName: apiData.mother_name,
     gender: apiData.gender,

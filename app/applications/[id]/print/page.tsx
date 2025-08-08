@@ -123,6 +123,24 @@ export default function PrintApplicationPage() {
         </div>
 
         <div>
+          {/* Photograph Section */}
+          {application.image && (
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 pb-2">
+                Photograph
+              </h2>
+              <div className="flex justify-center mb-4">
+                <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
+                  <img 
+                    src={`data:image/jpeg;base64,${application.image}`}
+                    alt="Citizen Photograph" 
+                    className="w-32 h-40 object-cover rounded"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          
           <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 pb-2">
             Physical Description
           </h2>

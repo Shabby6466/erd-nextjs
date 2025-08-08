@@ -142,12 +142,23 @@ export function ApplicationsTable({
                     </span>
                   </td>
                   <td className="p-3">
-                    <div>
-                      <div className="font-medium">
-                        {application.firstName && application.lastName 
-                          ? `${application.firstName} ${application.lastName}`.trim()
-                          : application.firstName || application.lastName || 'N/A'
-                        }
+                    <div className="flex items-center gap-3">
+                      {application.image && (
+                        <div className="flex-shrink-0">
+                          <img 
+                            src={`data:image/jpeg;base64,${application.image}`}
+                            alt="Citizen Photo" 
+                            className="w-10 h-12 object-cover rounded border border-gray-300"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-medium">
+                          {application.firstName && application.lastName 
+                            ? `${application.firstName} ${application.lastName}`.trim()
+                            : application.firstName || application.lastName || 'N/A'
+                          }
+                        </div>
                       </div>
                     </div>
                   </td>

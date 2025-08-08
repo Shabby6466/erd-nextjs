@@ -13,13 +13,64 @@ import { showNotification } from "@/lib/utils/notifications"
 import { citizenSchema, type CitizenFormData } from "@/lib/validations/citizen"
 import { applicationAPI } from "@/lib/api/applications"
 import { nadraAPI } from "@/lib/api/nadra"
+import { passportAPI, type PassportApiResponse } from "@/lib/api/passport"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
 export function CitizenForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isFetchingData, setIsFetchingData] = useState(false)
+  const [passportPhoto, setPassportPhoto] = useState<string | null>(null)
+  const [imageBase64, setImageBase64] = useState<string>("")
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null)
   const router = useRouter()
   const { user } = useAuthStore()
+
+  // Function to convert file to base64
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => {
+        const result = reader.result as string
+        // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+        const base64 = result.split(',')[1]
+        resolve(base64)
+      }
+      reader.onerror = (error) => reject(error)
+    })
+  }
+
+  // Function to handle manual image upload
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        showNotification.error("Please select a valid image file")
+        return
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification.error("Image size must be less than 5MB")
+        return
+      }
+
+      setUploadedImage(file)
+      const base64 = await convertFileToBase64(file)
+      setImageBase64(base64)
+      form.setValue("image", base64)
+      
+      // Set passport photo for display
+      setPassportPhoto(`data:${file.type};base64,${base64}`)
+      
+      showNotification.success("Image uploaded successfully")
+    } catch (error) {
+      showNotification.error("Failed to process image")
+    }
+  }
 
   const form = useForm<CitizenFormData>({
     resolver: zodResolver(citizenSchema),
@@ -27,6 +78,7 @@ export function CitizenForm() {
       citizen_id: "",
       first_name: "",
       last_name: "",
+      image: "",
       father_name: "",
       mother_name: "",
       gender:"",
@@ -52,20 +104,90 @@ export function CitizenForm() {
     },
   })
 
+  // Function to map passport API response to form data
+  const mapPassportDataToForm = (passportData: PassportApiResponse): Partial<CitizenFormData> => {
+    // Helper function to format date from DD-MMM-YYYY to YYYY-MM-DD
+    const formatDate = (dateStr: string): string => {
+      try {
+        const months: { [key: string]: string } = {
+          'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04',
+          'MAY': '05', 'JUN': '06', 'JUL': '07', 'AUG': '08',
+          'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+        }
+        
+        const [day, month, year] = dateStr.split('-')
+        const monthNum = months[month] || '01'
+        return `${year}-${monthNum}-${day.padStart(2, '0')}`
+      } catch {
+        return dateStr
+      }
+    }
+
+    // Combine first names and last name
+    const fullFirstName = passportData.first_names || ''
+    const lastName = passportData.last_name || ''
+    
+    // Combine father's names
+    const fatherFullName = `${passportData.father_first_names || ''} ${passportData.father_last_name || ''}`.trim()
+
+    return {
+      citizen_id: passportData.citizen_no,
+      first_name: fullFirstName,
+      last_name: lastName,
+      image: passportData.photograph || '', // Base64 image from passport API
+      father_name: fatherFullName,
+      // Note: mother_name is not available in passport API - user will need to fill manually
+      // Don't include mother_name in mapping to avoid clearing existing value
+      // Map gender (m/f to Male/Female)
+      gender: passportData.gender === 'm' ? 'Male' : passportData.gender === 'f' ? 'Female' : passportData.gender,
+      date_of_birth: formatDate(passportData.birthdate),
+      profession: passportData.profession,
+      birth_country: passportData.birthcountry === 'PK' ? 'Pakistan' : passportData.birthcountry,
+      birth_city: passportData.birthcity,
+      // Set pakistan_city to birth_city if birth_country is Pakistan
+      pakistan_city: passportData.birthcountry === 'PK' ? passportData.birthcity : '',
+    }
+  }
+
   const handleGetData = async () => {
     const citizenId = form.getValues("citizen_id")
-    if (!/^\d{12}$/.test(citizenId)) {
-      showNotification.error("Please enter a valid 12-digit citizen ID")
+    if (!/^\d{13}$/.test(citizenId)) {
+      showNotification.error("Please enter a valid 13-digit citizen ID")
       return
     }
 
     setIsFetchingData(true)
     try {
-      const data = await nadraAPI.getCitizenData(citizenId)
-      form.reset(data)
-      showNotification.success("Data fetched successfully")
-    } catch (error: any) {
-      showNotification.error(error.response?.data?.message || error.message || "Failed to fetch data from NADRA")
+      // Try passport API first
+      const passportData = await passportAPI.getCitizenData(citizenId)
+      const mappedData = mapPassportDataToForm(passportData)
+      
+      // Update form with mapped data (skip empty values)
+      Object.entries(mappedData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          form.setValue(key as keyof CitizenFormData, value)
+        }
+      })
+      
+      // Set passport photo if available
+      if (passportData.photograph) {
+        setPassportPhoto(`data:image/jpeg;base64,${passportData.photograph}`)
+        setImageBase64(passportData.photograph)
+      }
+      
+      showNotification.success("Data fetched successfully from Passport API")
+    } catch (passportError) {
+      console.warn('Passport API failed, trying NADRA API:', passportError)
+      try {
+        // Fallback to NADRA API
+        const data = await nadraAPI.getCitizenData(citizenId)
+        form.reset(data)
+        setPassportPhoto(null) // Clear any previous photo
+        setImageBase64("") // Clear base64 image
+        showNotification.success("Data fetched successfully from NADRA API (no photo available - please upload manually)")
+      } catch (nadraError: any) {
+        showNotification.error(nadraError.response?.data?.message || nadraError.message || "Failed to fetch data from both Passport and NADRA APIs")
+      }
     } finally {
       setIsFetchingData(false)
     }
@@ -74,6 +196,13 @@ export function CitizenForm() {
   const onSubmit = async (data: CitizenFormData) => {
     setIsLoading(true)
     try {
+      // Validate that image is provided
+      if (!data.image || data.image.trim() === '') {
+        showNotification.error("Please upload a photograph before submitting")
+        setIsLoading(false)
+        return
+      }
+
       // Ensure status is always set to DRAFT for new applications
       const applicationData = {
         ...data,
@@ -135,6 +264,55 @@ export function CitizenForm() {
                 >
                   {isFetchingData ? "Fetching..." : "Get Data"}
                 </Button>
+              </div>
+
+              {/* Image Upload Section */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <Label className="text-lg font-semibold mb-4 block">Photograph *</Label>
+                
+                {/* Image Display */}
+                {passportPhoto && (
+                  <div className="flex justify-center mb-4">
+                    <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
+                      <img 
+                        src={passportPhoto} 
+                        alt="Citizen Photo" 
+                        className="w-32 h-40 object-cover rounded"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Upload Controls */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="block w-full text-sm text-gray-500
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-full file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-blue-50 file:text-blue-700
+                          hover:file:bg-blue-100"
+                      />
+                    </div>
+                  </div>
+                  
+                  {!passportPhoto && !imageBase64 && (
+                    <p className="text-sm text-gray-600">
+                      No image available from passport API. Please upload a photo manually.
+                    </p>
+                  )}
+                  
+                  {imageBase64 && (
+                    <p className="text-sm text-green-600">
+                      ✓ Image ready for submission (Base64 format)
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Personal Information */}

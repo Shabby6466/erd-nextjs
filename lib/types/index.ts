@@ -19,6 +19,7 @@ export interface Application {
   citizenId: string
   firstName: string
   lastName: string
+  image?: string
   fatherName: string
   motherName: string
   gender: string

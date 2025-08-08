@@ -7,6 +7,7 @@ export const citizenSchema = z.object({
     .refine((value) => /^\d{13}$/.test(value), "citizen_id must be a 13-digit number string"),
   first_name: z.string().min(1, "First name is required").max(50, "First name too long"),
   last_name: z.string().min(1, "Last name is required").max(50, "Last name too long"),
+  image: z.string().min(1, "Image is required"),
   father_name: z.string().min(1, "Father's name is required").max(100, "Father's name too long"),
   mother_name: z.string().min(1, "Mother's name is required").max(100, "Mother's name too long"),
   gender: z.string().min(1, "Gender is required"),
