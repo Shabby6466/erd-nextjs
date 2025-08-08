@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Region, UserRole } from "@/lib/types"
+import { Application, Region, UserRole } from "@/lib/types"
 import { applicationAPI } from "@/lib/api/applications"
 import { attachmentAPI } from "@/lib/api/attachments"
 import { formatDate, formatStatus, getStatusVariant } from "@/lib/utils/formatting"
@@ -13,73 +13,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Printer, Upload, CheckCircle, XCircle, AlertTriangle, Send } from "lucide-react"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { SendForVerificationModal } from "@/components/ministry/SendForVerificationModal"
+import { SubmitVerificationModal } from "@/components/agency/SubmitVerificationModal"
 
-type AppAttachment = {
-  id: string
-  fileName: string
-  fileUrl: string
-  fileType: string
-}
 
-type AppDetails = {
-  id: string
-  createdAt: string
-  updatedAt: string
-  first_name: string
-  last_name: string
-  father_name: string
-  mother_name: string
-  citizen_id: string
-  pakistan_city: string
-  date_of_birth: string
-  birth_country: string
-  birth_city: string
-  profession: string
-  pakistan_address: string
-  height: string | number
-  color_of_hair: string
-  color_of_eyes: string
-  departure_date: string
-  transport_mode: string
-  investor: boolean
-  requested_by: string
-  reason_for_deport: string
-  amount: string | number
-  currency: string
-  is_fia_blacklist: boolean
-  status: string
-  created_by_id?: string
-  reviewed_by_id?: string | null
-  reviewed_at?: string | null
-  createdBy?: {
-    id: string
-    email: string
-    fullName: string
-    role: string
-    state?: string
-  } | null
-  reviewedBy?: {
-    id: string
-    email: string
-    fullName: string
-    role: string
-  } | null
-  attachments?: AppAttachment[]
-}
 
 export default function ApplicationViewPage() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuthStore()
 
-  const [application, setApplication] = useState<AppDetails | null>(null)
+  const [application, setApplication] = useState<Application | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [isActionLoading, setIsActionLoading] = useState<boolean>(false)
+  const [showSendForVerificationModal, setShowSendForVerificationModal] = useState(false)
+  const [showSubmitVerificationModal, setShowSubmitVerificationModal] = useState(false)
 
   const role: UserRole | undefined = user?.role as UserRole | undefined
   console.log(role)
   const canPerformAction = useMemo(() => {
-    return true;
     if (!application) return false
     const status = application.status
     switch (role) {
@@ -101,116 +53,14 @@ export default function ApplicationViewPage() {
     return role === "MISSION_OPERATOR" && ["APPROVED", "COMPLETED"].includes(application.status)
   }, [application, role])
 
-  const mapApiToDetails = (api: Record<string, unknown>): AppDetails => {
-    const getString = (obj: Record<string, unknown>, ...keys: string[]): string => {
-      for (const key of keys) {
-        const val = obj[key]
-        if (typeof val === "string") return val
-        if (val !== undefined && val !== null) return String(val)
-      }
-      return ""
-    }
 
-    const getNumberOrString = (obj: Record<string, unknown>, ...keys: string[]): number | string => {
-      for (const key of keys) {
-        const val = obj[key]
-        if (typeof val === "number" || typeof val === "string") return val
-      }
-      return ""
-    }
-
-    const getBool = (obj: Record<string, unknown>, ...keys: string[]): boolean => {
-      for (const key of keys) {
-        const val = obj[key]
-        if (typeof val === "boolean") return val
-        if (typeof val === "string") return val.toLowerCase() === "true"
-        if (typeof val === "number") return val !== 0
-      }
-      return false
-    }
-
-    const getObj = (obj: Record<string, unknown>, key: string): Record<string, unknown> | null => {
-      const val = obj[key]
-      return val && typeof val === "object" ? (val as Record<string, unknown>) : null
-    }
-
-    const getAttachments = (obj: Record<string, unknown>): AppAttachment[] => {
-      const raw = obj["attachments"]
-      const arr: unknown[] = Array.isArray(raw) ? raw : []
-      return arr
-        .map((item) => (typeof item === "object" && item !== null ? (item as Record<string, unknown>) : null))
-        .filter((it): it is Record<string, unknown> => !!it)
-        .map((it) => ({
-          id: getString(it, "id"),
-          fileName: getString(it, "fileName", "name"),
-          fileUrl: getString(it, "fileUrl", "url"),
-          fileType: getString(it, "fileType", "type"),
-        }))
-    }
-
-    return {
-      id: getString(api, "id"),
-      createdAt: getString(api, "createdAt"),
-      updatedAt: getString(api, "updatedAt"),
-      first_name: getString(api, "first_name", "firstName"),
-      last_name: getString(api, "last_name", "lastName"),
-      father_name: getString(api, "father_name", "fatherName"),
-      mother_name: getString(api, "mother_name", "motherName"),
-      citizen_id: getString(api, "citizen_id", "citizenId"),
-      pakistan_city: getString(api, "pakistan_city", "pakistanCity"),
-      date_of_birth: getString(api, "date_of_birth", "dateOfBirth"),
-      birth_country: getString(api, "birth_country", "birthCountry"),
-      birth_city: getString(api, "birth_city", "birthCity"),
-      profession: getString(api, "profession"),
-      pakistan_address: getString(api, "pakistan_address", "pakistanAddress"),
-      height: getNumberOrString(api, "height"),
-      color_of_hair: getString(api, "color_of_hair", "colorOfHair"),
-      color_of_eyes: getString(api, "color_of_eyes", "colorOfEyes"),
-      departure_date: getString(api, "departure_date", "departureDate"),
-      transport_mode: getString(api, "transport_mode", "transportMode"),
-      investor: getBool(api, "investor"),
-      requested_by: getString(api, "requested_by", "requestedBy"),
-      reason_for_deport: getString(api, "reason_for_deport", "reasonForDeport"),
-      amount: getNumberOrString(api, "amount"),
-      currency: getString(api, "currency"),
-      is_fia_blacklist: getBool(api, "is_fia_blacklist", "isFiaBlacklist"),
-      status: getString(api, "status"),
-      created_by_id: getString(api, "created_by_id", "createdById"),
-      reviewed_by_id: getString(api, "reviewed_by_id", "reviewedById") || null,
-      reviewed_at: getString(api, "reviewed_at", "reviewedAt") || null,
-      createdBy: (() => {
-        const cb = getObj(api, "createdBy")
-        return cb
-          ? {
-              id: getString(cb, "id"),
-              email: getString(cb, "email"),
-              fullName: getString(cb, "fullName"),
-              role: getString(cb, "role"),
-              state: getString(cb, "state"),
-            }
-          : null
-      })(),
-      reviewedBy: (() => {
-        const rb = getObj(api, "reviewedBy")
-        return rb
-          ? {
-              id: getString(rb, "id"),
-              email: getString(rb, "email"),
-              fullName: getString(rb, "fullName"),
-              role: getString(rb, "role"),
-            }
-          : null
-      })(),
-      attachments: getAttachments(api),
-    }
-  }
 
   const refresh = async () => {
     if (!params?.id) return
     setIsLoading(true)
     try {
       const data = await applicationAPI.getById(params.id as string)
-      setApplication(mapApiToDetails(data as unknown as Record<string, unknown>))
+      setApplication(data)
     } catch {
       showNotification.error("Failed to fetch application details")
     } finally {
@@ -330,6 +180,90 @@ export default function ApplicationViewPage() {
     }
   }
 
+  const handlePrintApplication = async () => {
+    if (!application) return
+    
+    try {
+      setIsActionLoading(true)
+      const blob = await applicationAPI.printApplication(application.id)
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `application-${application.id}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      
+      showNotification.success("Application downloaded successfully")
+    } catch (error) {
+      showNotification.error("Failed to download application")
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
+
+  const handleSendForVerification = async (data: {
+    verification_type: 'INTELLIGENCE_BUREAU' | 'SPECIAL_BRANCH' | 'BOTH'
+    region?: string
+    remarks?: string
+  }) => {
+    if (!application) return
+    
+    try {
+      setIsActionLoading(true)
+      await applicationAPI.sendForVerification(application.id, data)
+      showNotification.success("Application sent for verification")
+      setShowSendForVerificationModal(false)
+      await refresh()
+    } catch (error: any) {
+      showNotification.error(error.response?.data?.message || "Failed to send for verification")
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
+
+  const handleSubmitVerification = async (data: {
+    remarks: string
+    attachment?: File
+  }) => {
+    if (!application) return
+    
+    try {
+      setIsActionLoading(true)
+      await applicationAPI.submitVerification(application.id, data)
+      showNotification.success("Verification submitted successfully")
+      setShowSubmitVerificationModal(false)
+      await refresh()
+    } catch (error: any) {
+      showNotification.error(error.response?.data?.message || "Failed to submit verification")
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
+
+  const handleDirectReject = async () => {
+    if (!application) return
+    const remarks = window.prompt("Enter rejection remarks:")
+    if (!remarks) return
+    
+    try {
+      setIsActionLoading(true)
+      await applicationAPI.updateStatus(application.id, {
+        status: 'REJECTED',
+        remarks
+      })
+      showNotification.success("Application rejected")
+      await refresh()
+    } catch (error: any) {
+      showNotification.error(error.response?.data?.message || "Failed to reject application")
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -381,24 +315,24 @@ export default function ApplicationViewPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <Section title="Personal Information">
-                <GridItem label="First Name" value={application.first_name} />
-                <GridItem label="Last Name" value={application.last_name} />
-                <GridItem label="Father's Name" value={application.father_name} />
-                <GridItem label="Mother's Name" value={application.mother_name} />
-                <GridItem label="Citizen ID" value={application.citizen_id} mono />
-                <GridItem label="Date of Birth" value={formatDate(application.date_of_birth)} />
-                <GridItem label="Birth Country" value={application.birth_country} />
-                <GridItem label="Birth City" value={application.birth_city} />
+                <GridItem label="First Name" value={application.firstName} />
+                <GridItem label="Last Name" value={application.lastName} />
+                <GridItem label="Father's Name" value={application.fatherName} />
+                <GridItem label="Mother's Name" value={application.motherName} />
+                <GridItem label="Citizen ID" value={application.citizenId} mono />
+                <GridItem label="Date of Birth" value={formatDate(application.dateOfBirth)} />
+                <GridItem label="Birth Country" value={application.birthCountry || '-'} />
+                <GridItem label="Birth City" value={application.birthCity || '-'} />
                 <GridItem label="Profession" value={application.profession} />
               </Section>
             </div>
             <div className="space-y-4">
               <Section title="Physical & Address">
                 <GridItem label="Height" value={String(application.height)} />
-                <GridItem label="Eye Color" value={application.color_of_eyes} />
-                <GridItem label="Hair Color" value={application.color_of_hair} />
-                <GridItem label="City" value={application.pakistan_city} />
-                <GridItem label="Address" value={application.pakistan_address} />
+                <GridItem label="Eye Color" value={application.colorOfEyes} />
+                <GridItem label="Hair Color" value={application.colorOfHair} />
+                <GridItem label="City" value={application.pakistanCity} />
+                <GridItem label="Address" value={application.pakistanAddress} />
               </Section>
             </div>
           </div>
@@ -406,8 +340,8 @@ export default function ApplicationViewPage() {
           <div className="mt-6">
             <Section title="Travel Information">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <GridItem label="Departure Date" value={formatDate(application.departure_date)} />
-                <GridItem label="Transport Mode" value={application.transport_mode} />
+                <GridItem label="Departure Date" value={formatDate(application.departureDate)} />
+                <GridItem label="Transport Mode" value={application.transportMode} />
               </div>
             </Section>
           </div>
@@ -415,11 +349,11 @@ export default function ApplicationViewPage() {
           <div className="mt-6">
             <Section title="Request & Flags">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <GridItem label="Investor" value={application.investor ? "Yes" : "No"} />
-                <GridItem label="Requested By" value={application.requested_by} />
+                <GridItem label="Investor" value={application.investor || '-'} />
+                <GridItem label="Requested By" value={application.requestedBy || '-'} />
                 <GridItem label="Reason for Deport" value={application.reason_for_deport} />
-                <GridItem label="Amount" value={`${application.amount} ${application.currency}`} />
-                <GridItem label="FIA Blacklist" value={application.is_fia_blacklist ? "Yes" : "No"} />
+                <GridItem label="Amount" value={application.securityDeposit || '-'} />
+                <GridItem label="FIA Blacklist" value={application.isFiaBlacklist ? "Yes" : "No"} />
               </div>
             </Section>
           </div>
@@ -433,8 +367,8 @@ export default function ApplicationViewPage() {
                 {application.createdBy?.fullName && (
                   <GridItem label="Created By" value={`${application.createdBy.fullName} (${application.createdBy.role})`} />
                 )}
-                {application.reviewedBy?.fullName && (
-                  <GridItem label="Reviewed By" value={`${application.reviewedBy.fullName} (${application.reviewedBy.role})`} />
+                {application.reviewedByUser?.fullName && (
+                  <GridItem label="Reviewed By" value={`${application.reviewedByUser.fullName} (${application.reviewedByUser.role})`} />
                 )}
               </div>
             </Section>
@@ -512,27 +446,69 @@ export default function ApplicationViewPage() {
                 </>
               )}
 
+              {role === "AGENCY" && application.status === "UNDER_VERIFICATION" && (
+                <Button onClick={() => setShowSubmitVerificationModal(true)} disabled={isActionLoading}>
+                  <Upload className="mr-2 h-4 w-4" /> Submit Verification
+                </Button>
+              )}
+
               {(role === "MINISTRY" || role === "ADMIN") && (
                 <>
-                  <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
-                    <CheckCircle className="mr-2 h-4 w-4" /> Approve
-                  </Button>
-                  <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
-                    <XCircle className="mr-2 h-4 w-4" /> Reject
-                  </Button>
-                  <Button onClick={handleBlacklist} variant="destructive" disabled={isActionLoading}>
-                    <AlertTriangle className="mr-2 h-4 w-4" /> Blacklist
-                  </Button>
-                  <Button onClick={handleSendToAgency} variant="secondary" disabled={isActionLoading}>
-                    <Send className="mr-2 h-4 w-4" /> Send to Agency
-                  </Button>
+                  {application.status === "DRAFT" && (
+                    <>
+                      <Button onClick={() => setShowSendForVerificationModal(true)} disabled={isActionLoading}>
+                        <Send className="mr-2 h-4 w-4" /> Send for Verification
+                      </Button>
+                      <Button onClick={handleDirectReject} variant="destructive" disabled={isActionLoading}>
+                        <XCircle className="mr-2 h-4 w-4" /> Reject
+                      </Button>
+                    </>
+                  )}
+                  
+                  {application.status !== "DRAFT" && (
+                    <>
+                      <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
+                        <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                      </Button>
+                      <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
+                        <XCircle className="mr-2 h-4 w-4" /> Reject
+                      </Button>
+                      <Button onClick={handleBlacklist} variant="destructive" disabled={isActionLoading}>
+                        <AlertTriangle className="mr-2 h-4 w-4" /> Blacklist
+                      </Button>
+                      <Button onClick={handleSendToAgency} variant="secondary" disabled={isActionLoading}>
+                        <Send className="mr-2 h-4 w-4" /> Send to Agency
+                      </Button>
+                    </>
+                  )}
                 </>
+              )}
+
+              {role === "MISSION_OPERATOR" && canPrint && (
+                <Button onClick={handlePrintApplication} disabled={isActionLoading}>
+                  <Printer className="mr-2 h-4 w-4" /> Print Application
+                </Button>
               )}
             </div>
           </CardContent>
         </Card>
       )}
     </div>
+    
+    {/* Modals */}
+    <SendForVerificationModal
+      isOpen={showSendForVerificationModal}
+      onClose={() => setShowSendForVerificationModal(false)}
+      onSubmit={handleSendForVerification}
+      isLoading={isActionLoading}
+    />
+    
+    <SubmitVerificationModal
+      isOpen={showSubmitVerificationModal}
+      onClose={() => setShowSubmitVerificationModal(false)}
+      onSubmit={handleSubmitVerification}
+      isLoading={isActionLoading}
+    />
     </div>
   )
 }

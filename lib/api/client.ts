@@ -34,8 +34,8 @@ apiClient.interceptors.response.use(
       // Handle unauthorized access
       if (typeof window !== "undefined") {
         const { logout } = useAuthStore.getState()
-        // logout()
-        // window.location.href = "/login"
+        logout()
+        window.location.href = "/login"
       }
     }
     return Promise.reject(error)

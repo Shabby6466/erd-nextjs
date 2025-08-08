@@ -142,15 +142,17 @@ export function ApplicationsTable({
                   <td className="p-3">
                     <div>
                       <div className="font-medium">
-                        {application.firstName} {application.lastName}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {application.profession}
+                        {application.firstName && application.lastName 
+                          ? `${application.firstName} ${application.lastName}`.trim()
+                          : application.firstName || application.lastName || 'N/A'
+                        }
                       </div>
                     </div>
                   </td>
                   <td className="p-3">
-                    <span className="font-mono text-sm">{application.citizenId}</span>
+                    <span className="font-mono text-sm">
+                      {application.citizenId || 'N/A'}
+                    </span>
                   </td>
                   <td className="p-3">
                     <Badge variant={getStatusVariant(application.status)}>

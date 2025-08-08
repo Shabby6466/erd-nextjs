@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { showNotification } from "@/lib/utils/notifications"
-import { formatCNIC, validateCNIC } from "@/lib/utils/formatting"
+// import { formatCNIC, validateCNIC } from "@/lib/utils/formatting"
 import { citizenSchema, type CitizenFormData } from "@/lib/validations/citizen"
 import { applicationAPI } from "@/lib/api/applications"
 import { nadraAPI } from "@/lib/api/nadra"
@@ -27,24 +27,26 @@ export function CitizenForm() {
       last_name: "",
       father_name: "",
       mother_name: "",
+      gender:"",
       date_of_birth: "",
-      nationality: "",
+      // nationality: "",
       profession: "",
       pakistan_city: "",
       pakistan_address: "",
       birth_country: "",
       birth_city: "",
-      height: 0,
+      height: "",
       color_of_eyes: "",
       color_of_hair: "",
       departure_date: "",
       transport_mode: "",
-      investor: false,
+      investor: "",
       requested_by: "",
       reason_for_deport: "",
+      securityDeposit: "",
       amount: 0,
       currency: "",
-      is_fia_blacklist: false,
+      // is_fia_blacklist: false,
       status: "DRAFT",
     },
   })
@@ -134,13 +136,17 @@ export function CitizenForm() {
                   <Input id="mother_name" {...form.register("mother_name")} />
                 </div>
                 <div>
+                  <Label htmlFor="gender">Gender</Label>
+                  <Input id="gender" {...form.register("gender")} />
+                </div>
+                <div>
                   <Label htmlFor="date_of_birth">Date of Birth</Label>
                   <Input id="date_of_birth" type="date" {...form.register("date_of_birth")} />
                 </div>
-                <div>
+                {/* <div>
                   <Label htmlFor="nationality">Nationality</Label>
                   <Input id="nationality" {...form.register("nationality")} />
-                </div>
+                </div> */}
               </div>
 
               {/* Address & Birth Information */}
@@ -171,7 +177,7 @@ export function CitizenForm() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="height">Height</Label>
-                  <Input id="height" type="number" step="0.01" placeholder="e.g., 5.9" {...form.register("height", { valueAsNumber: true })} />
+                  <Input id="height"  placeholder="e.g., 5.9" {...form.register("height")} />
                 </div>
                 <div>
                   <Label htmlFor="color_of_eyes">Eye Color</Label>
@@ -195,7 +201,7 @@ export function CitizenForm() {
                 </div>
                 <div>
                   <Label htmlFor="investor">Investor</Label>
-                  <Input id="investor" type="checkbox" {...form.register("investor")} />
+                  <Input id="transport_mode" placeholder="Gov of Pakistan" {...form.register("investor")} />
                 </div>
                 <div>
                   <Label htmlFor="requested_by">Requested By</Label>
@@ -206,6 +212,10 @@ export function CitizenForm() {
                   <Input id="reason_for_deport" {...form.register("reason_for_deport")} />
                 </div>
                 <div>
+                  <Label htmlFor="securityDeposit">Security Deposit Description (if any)</Label>
+                  <Input id="securityDeposit" placeholder="-" {...form.register("securityDeposit")} />
+                </div>
+                <div>
                   <Label htmlFor="amount">Amount</Label>
                   <Input id="amount" type="number" step="0.01" {...form.register("amount", { valueAsNumber: true })} />
                 </div>
@@ -213,10 +223,10 @@ export function CitizenForm() {
                   <Label htmlFor="currency">Currency</Label>
                   <Input id="currency" {...form.register("currency")} />
                 </div>
-                <div>
+                {/* <div>
                   <Label htmlFor="is_fia_blacklist">FIA Blacklist</Label>
                   <Input id="is_fia_blacklist" type="checkbox" {...form.register("is_fia_blacklist")} />
-                </div>
+                </div> */}
                 <div>
                   <Label htmlFor="status">Status</Label>
                   <Input id="status" {...form.register("status")} />
