@@ -1,0 +1,103 @@
+SNO,LOCATION_ID,NAME
+1,2010,Jeddah
+2,3010,Dubai
+3,4010,"London, England"
+4,5010,"Frankfurt, Germany"
+5,7010,"Toronto, Canada"
+6,6010,"Rome, Italy"
+7,9110,Oslo
+8,9210,"Dehli, India"
+9,8010,"New York, USA"
+10,9010,"Los Angeles, USA"
+11,7020,"Ottawa, Canada"
+12,3020,Abu Dhabi
+13,2020,Riyadh
+14,3050,"Doha,Qatar"
+15,3040,"Muscat,Oman"
+16,3030,"Damuscus,Syria"
+17,7120,"Kualalumpur,Malysia"
+18,9120,Paris
+19,2085,Kuwait
+20,2030,"Manama, Bahrain"
+21,8520,"Canberra, Australia"
+22,4050,Bradford
+23,8510,"Sydney, Australia"
+24,6040,Athens
+25,6120,CHN-Beijing
+26,9170,Copenhagen
+27,5020,"The Hague, Netherlands"
+28,6030,"Madrid, Spain"
+29,9495,"Tashkent,Uzbekistan"
+30,4030,Manchester
+31,6110,Hong Kong
+32,4020,Birmingham
+33,8021,Washington DC
+34,6170,"Seoul, Korea"
+35,6050,"Milan,Italy"
+36,2640,"Pretoria,South Africa"
+37,8030,"Houston, USA"
+38,8020,"Washington DC, USA"
+39,8040,"Chicago, USA"
+40,5040,"Sweden, Stockholm"
+41,7110,"Jakarta, Indonasia"
+42,9460,"Astana, Kazakhstan"
+43,9240,Kathmandu Nepal
+44,2095,"Istanbol, Turkey"
+45,9360,"Balgrade, Serbia"
+46,2040,"Amman, Jordan"
+47,6150,"Tokyo, Japan"
+48,9130,"Berlin, Germany"
+49,5030,"Warsaw, Poland"
+50,7150,Singapore
+51,8050,"Mexico, North America"
+52,2060,"Mashad, Iran"
+53,2650,"Harare, Zimbabwe"
+54,2070,"Tehran, Iran"
+55,2071,"Zahidan, Iran"
+56,2710,Abuja-Nigeria
+57,2730,Dakar
+58,4080,Dublin
+59,2550,Khartoum
+60,9009,Test Server
+61,4501,Chengdu
+62,2015,madina
+63,9998,Test Online Server
+64,6666,burmees_data
+65,5050,"Bern, Switzerland"
+66,8530,NZL -Wellington
+67,9140,"Vienna, Austria"
+68,9350,"Kyiv, Ukraine"
+69,9340,"Moscow, Russia"
+70,2610,"Nairobi, Keynia"
+71,2050,"Beirut, Lebanon"
+72,7182,"Phnom Penh, Indo China"
+73,9220,Dhaka
+74,2630,"Port Louis, Mauritius"
+75,7190,Brunai Darussalam
+76,2620,"Darussalam, Tanzania"
+77,7140,"Manila, Philipine"
+78,7160,"Bangkok, Thailand"
+79,7035,"Vancouver, Canada"
+80,4040,"Glasgow,Scotland, UK"
+81,9160,"Brussels, Belgium"
+82,7130,"Yangon, Indo China"
+83,7030,"Montreal, Canada"
+84,9999,Online Passport Applications
+85,9000,Reprint Virtual Site
+86,2540,"Rabat, Morocco"
+87,4502,Shanghai
+88,4060,Dublin
+89,2080,Baghdad
+90,3060,"Ankara, Turkey"
+91,9250,"Colombo, SriLanka"
+92,2090,"Baku, Azerbaijan"
+93,6033,"Barcelona, Spain"
+94,9310,"Sarajevo, Bosnia"
+95,7180,Phnom Penh Cambodia
+96,9330,"Bucharest, Romania"
+97,9470,Bishkek Kyrgyzstan
+98,6020,"Lisbon, Purtugal"
+99,2530,"Tripoli, Libya"
+100,2520,"Cairo, Egypt"
+101,8070,Brasilia
+102,8060,Buenos Aires

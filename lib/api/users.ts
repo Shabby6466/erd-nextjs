@@ -40,4 +40,10 @@ export const userAPI = {
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/users/${id}`)
   },
+
+  // Fetch foreign mission offices for Ministry users
+  getForeignMissionOffices: async (): Promise<string[]> => {
+    const response = await apiClient.get("/users/foreign-mission-offices")
+    return response.data
+  },
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -26,10 +26,11 @@ const createUserSchema = z.object({
   if (data.role === "AGENCY" && !data.agency) {
     return false;
   }
-  // Mission Operator must have state field
+  // Mission Operator must have state field (if available from API or manual entry)
   if (data.role === "MISSION_OPERATOR" && !data.state) {
     return false;
   }
+  // Ministry users don't need state field anymore
   // Special Branch agencies should have state (except Intelligence Bureau)
   if (data.role === "AGENCY" && data.agency?.startsWith("SPECIAL_BRANCH") && !data.state) {
     return false;
@@ -49,6 +50,8 @@ interface CreateUserModalProps {
 
 export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [foreignMissionOffices, setForeignMissionOffices] = useState<string[]>([])
+  const [isLoadingOffices, setIsLoadingOffices] = useState(false)
   const { user } = useAuthStore()
 
   const form = useForm<CreateUserFormData>({
@@ -66,6 +69,44 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
 
   const watchedRole = form.watch("role")
   const watchedAgency = form.watch("agency")
+
+  // Fetch foreign mission offices when modal opens
+  useEffect(() => {
+    if (open) {
+      const fetchOffices = async () => {
+        setIsLoadingOffices(true)
+        try {
+          const offices = await userAPI.getForeignMissionOffices()
+          // Ensure we have an array of strings
+          if (Array.isArray(offices)) {
+            const validOffices = offices
+              .map(office => {
+                if (typeof office === 'string') {
+                  return office
+                }
+                // Handle object format like {value: "Jeddah", label: "Jeddah"}
+                if (office && typeof office === 'object') {
+                  return (office as any)?.value || (office as any)?.label || ''
+                }
+                return ''
+              })
+              .filter(office => office.length > 0)
+            setForeignMissionOffices(validOffices)
+          } else {
+            console.warn('Foreign mission offices API returned non-array:', offices)
+            setForeignMissionOffices([])
+          }
+        } catch (error) {
+          console.error('Failed to fetch foreign mission offices:', error)
+          // Don't show error notification, just fail silently
+          setForeignMissionOffices([])
+        } finally {
+          setIsLoadingOffices(false)
+        }
+      }
+      fetchOffices()
+    }
+  }, [open])
 
   const onSubmit = async (data: CreateUserFormData) => {
     setIsLoading(true)
@@ -88,7 +129,8 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
     } else if (data.role === "MISSION_OPERATOR") {
       payload.state = data.state
     }
-    // MINISTRY and ADMIN roles don't need additional fields
+    // Ministry users don't need state field
+    // ADMIN roles don't need additional fields
     
     console.log('Creating user with payload:', payload)
     
@@ -186,23 +228,46 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
               </select>
             </div>
 
+            {/* Ministry users don't need additional fields */}
+
+            {/* Mission Operator Foreign Mission Office */}
             {watchedRole === "MISSION_OPERATOR" && (
               <div className="space-y-2">
-                <Label htmlFor="state">State/Region *</Label>
-                <select
-                  id="state"
-                  {...form.register("state")}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select State/Region</option>
-                  <option value="Punjab">Punjab</option>
-                  <option value="Sindh">Sindh</option>
-                  <option value="KPK">KPK</option>
-                  <option value="Balochistan">Balochistan</option>
-                  <option value="Gilgit_Baltistan">Gilgit Baltistan</option>
-                  <option value="AJK">AJK</option>
-                  <option value="Federal">Federal</option>
-                </select>
+                <Label htmlFor="state">Foreign Mission Office *</Label>
+                {isLoadingOffices ? (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500">
+                    Loading foreign mission offices...
+                  </div>
+                ) : foreignMissionOffices.length > 0 ? (
+                  <select
+                    id="state"
+                    {...form.register("state")}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select Foreign Mission Office</option>
+                    {foreignMissionOffices.map((office, index) => (
+                      <option key={`mission-${index}-${office}`} value={office}>
+                        {office}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      id="state"
+                      type="text"
+                      placeholder="Enter foreign mission office name"
+                      {...form.register("state")}
+                      className={form.formState.errors.state ? "border-red-500" : ""}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Foreign mission offices list unavailable. Please enter manually.
+                    </p>
+                  </div>
+                )}
+                {form.formState.errors.state && watchedRole === "MISSION_OPERATOR" && (
+                  <p className="text-sm text-red-500">Foreign Mission Office is required</p>
+                )}
               </div>
             )}
 
