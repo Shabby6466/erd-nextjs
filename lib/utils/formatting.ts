@@ -41,9 +41,16 @@ export function formatStatus(status: string): string {
     DRAFT: "Draft",
     SUBMITTED: "Submitted",
     UNDER_REVIEW: "Under Review",
+    UNDER_VERIFICATION: "Under Verification",
+    PENDING_VERIFICATION: "Pending Verification",
+    VERIFICATION_SUBMITTED: "Verification Submitted",
+    VERIFICATION_RECEIVED: "Verification Received",
+    AGENCY_REVIEW: "Agency Review",
+    MINISTRY_REVIEW: "Ministry Review",
     APPROVED: "Approved",
     REJECTED: "Rejected",
     COMPLETED: "Completed",
+    BLACKLISTED: "Blacklisted",
   }
   return statusMap[status] || status
 }
@@ -53,9 +60,16 @@ export function getStatusVariant(status: string): "default" | "secondary" | "des
     DRAFT: "outline",
     SUBMITTED: "secondary",
     UNDER_REVIEW: "default",
+    UNDER_VERIFICATION: "secondary",
+    PENDING_VERIFICATION: "secondary",
+    VERIFICATION_SUBMITTED: "default",
+    VERIFICATION_RECEIVED: "default",
+    AGENCY_REVIEW: "default",
+    MINISTRY_REVIEW: "default",
     APPROVED: "default",
     REJECTED: "destructive",
     COMPLETED: "default",
+    BLACKLISTED: "destructive",
   }
   return variantMap[status] || "outline"
 }

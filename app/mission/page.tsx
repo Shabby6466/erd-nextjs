@@ -74,7 +74,7 @@ export default function MissionOperatorDashboard() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Mission Operator Dashboard</h1>
             <p className="text-gray-600">
-              Manage applications for {user?.region} region
+              Manage applications for {user?.state} region
             </p>
           </div>
           <div className="flex items-center gap-4">

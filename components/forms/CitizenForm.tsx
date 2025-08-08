@@ -9,15 +9,68 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { showNotification } from "@/lib/utils/notifications"
-import { formatCNIC, validateCNIC } from "@/lib/utils/formatting"
+// import { formatCNIC, validateCNIC } from "@/lib/utils/formatting"
 import { citizenSchema, type CitizenFormData } from "@/lib/validations/citizen"
 import { applicationAPI } from "@/lib/api/applications"
 import { nadraAPI } from "@/lib/api/nadra"
+import { passportAPI, type PassportApiResponse } from "@/lib/api/passport"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 export function CitizenForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isFetchingData, setIsFetchingData] = useState(false)
+  const [passportPhoto, setPassportPhoto] = useState<string | null>(null)
+  const [imageBase64, setImageBase64] = useState<string>("")
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null)
   const router = useRouter()
+  const { user } = useAuthStore()
+
+  // Function to convert file to base64
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => {
+        const result = reader.result as string
+        // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+        const base64 = result.split(',')[1]
+        resolve(base64)
+      }
+      reader.onerror = (error) => reject(error)
+    })
+  }
+
+  // Function to handle manual image upload
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        showNotification.error("Please select a valid image file")
+        return
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification.error("Image size must be less than 5MB")
+        return
+      }
+
+      setUploadedImage(file)
+      const base64 = await convertFileToBase64(file)
+      setImageBase64(base64)
+      form.setValue("image", base64)
+      
+      // Set passport photo for display
+      setPassportPhoto(`data:${file.type};base64,${base64}`)
+      
+      showNotification.success("Image uploaded successfully")
+    } catch (error) {
+      showNotification.error("Failed to process image")
+    }
+  }
 
   const form = useForm<CitizenFormData>({
     resolver: zodResolver(citizenSchema),
@@ -25,44 +78,116 @@ export function CitizenForm() {
       citizen_id: "",
       first_name: "",
       last_name: "",
+      image: "",
       father_name: "",
       mother_name: "",
+      gender:"",
       date_of_birth: "",
-      nationality: "",
+      // nationality: "",
       profession: "",
       pakistan_city: "",
       pakistan_address: "",
       birth_country: "",
       birth_city: "",
-      height: 0,
+      height: "",
       color_of_eyes: "",
       color_of_hair: "",
       departure_date: "",
       transport_mode: "",
-      investor: false,
+      investor: "",
       requested_by: "",
       reason_for_deport: "",
+      securityDeposit: "",
       amount: 0,
       currency: "",
-      is_fia_blacklist: false,
-      status: "DRAFT",
+      // is_fia_blacklist: false,
     },
   })
 
+  // Function to map passport API response to form data
+  const mapPassportDataToForm = (passportData: PassportApiResponse): Partial<CitizenFormData> => {
+    // Helper function to format date from DD-MMM-YYYY to YYYY-MM-DD
+    const formatDate = (dateStr: string): string => {
+      try {
+        const months: { [key: string]: string } = {
+          'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04',
+          'MAY': '05', 'JUN': '06', 'JUL': '07', 'AUG': '08',
+          'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+        }
+        
+        const [day, month, year] = dateStr.split('-')
+        const monthNum = months[month] || '01'
+        return `${year}-${monthNum}-${day.padStart(2, '0')}`
+      } catch {
+        return dateStr
+      }
+    }
+
+    // Combine first names and last name
+    const fullFirstName = passportData.first_names || ''
+    const lastName = passportData.last_name || ''
+    
+    // Combine father's names
+    const fatherFullName = `${passportData.father_first_names || ''} ${passportData.father_last_name || ''}`.trim()
+
+    return {
+      citizen_id: passportData.citizen_no,
+      first_name: fullFirstName,
+      last_name: lastName,
+      image: passportData.photograph || '', // Base64 image from passport API
+      father_name: fatherFullName,
+      // Note: mother_name is not available in passport API - user will need to fill manually
+      // Don't include mother_name in mapping to avoid clearing existing value
+      // Map gender (m/f to Male/Female)
+      gender: passportData.gender === 'm' ? 'Male' : passportData.gender === 'f' ? 'Female' : passportData.gender,
+      date_of_birth: formatDate(passportData.birthdate),
+      profession: passportData.profession,
+      birth_country: passportData.birthcountry === 'PK' ? 'Pakistan' : passportData.birthcountry,
+      birth_city: passportData.birthcity,
+      // Set pakistan_city to birth_city if birth_country is Pakistan
+      pakistan_city: passportData.birthcountry === 'PK' ? passportData.birthcity : '',
+    }
+  }
+
   const handleGetData = async () => {
     const citizenId = form.getValues("citizen_id")
-    if (!/^\d{12}$/.test(citizenId)) {
-      showNotification.error("Please enter a valid 12-digit citizen ID")
+    if (!/^\d{13}$/.test(citizenId)) {
+      showNotification.error("Please enter a valid 13-digit citizen ID")
       return
     }
 
     setIsFetchingData(true)
     try {
-      const data = await nadraAPI.getCitizenData(citizenId)
-      form.reset(data)
-      showNotification.success("Data fetched successfully")
-    } catch (error: any) {
-      showNotification.error(error.response?.data?.message || error.message || "Failed to fetch data from NADRA")
+      // Try passport API first
+      const passportData = await passportAPI.getCitizenData(citizenId)
+      const mappedData = mapPassportDataToForm(passportData)
+      
+      // Update form with mapped data (skip empty values)
+      Object.entries(mappedData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          form.setValue(key as keyof CitizenFormData, value)
+        }
+      })
+      
+      // Set passport photo if available
+      if (passportData.photograph) {
+        setPassportPhoto(`data:image/jpeg;base64,${passportData.photograph}`)
+        setImageBase64(passportData.photograph)
+      }
+      
+      showNotification.success("Data fetched successfully from Passport API")
+    } catch (passportError) {
+      console.warn('Passport API failed, trying NADRA API:', passportError)
+      try {
+        // Fallback to NADRA API
+        const data = await nadraAPI.getCitizenData(citizenId)
+        form.reset(data)
+        setPassportPhoto(null) // Clear any previous photo
+        setImageBase64("") // Clear base64 image
+        showNotification.success("Data fetched successfully from NADRA API (no photo available - please upload manually)")
+      } catch (nadraError: any) {
+        showNotification.error(nadraError.response?.data?.message || nadraError.message || "Failed to fetch data from both Passport and NADRA APIs")
+      }
     } finally {
       setIsFetchingData(false)
     }
@@ -71,9 +196,32 @@ export function CitizenForm() {
   const onSubmit = async (data: CitizenFormData) => {
     setIsLoading(true)
     try {
-      const application = await applicationAPI.create(data)
+      // Validate that image is provided
+      if (!data.image || data.image.trim() === '') {
+        showNotification.error("Please upload a photograph before submitting")
+        setIsLoading(false)
+        return
+      }
+
+      // Ensure status is always set to DRAFT for new applications
+      const applicationData = {
+        ...data,
+        status: "DRAFT"
+      }
+      const application = await applicationAPI.create(applicationData)
       showNotification.success("Application created successfully")
-      router.push(`/applications/${application.id}`)
+      
+      // Navigate based on user role
+      console.log('Application created successfully, user role:', user?.role)
+      if (user?.role === "MISSION_OPERATOR") {
+        // Mission Operators go back to their main dashboard
+        console.log('Redirecting Mission Operator to dashboard')
+        router.push("/mission")
+      } else {
+        // Other roles can view the application details
+        console.log('Redirecting to application details page')
+        router.push(`/applications/${application.id}`)
+      }
     } catch (error) {
       showNotification.error("Failed to create application")
     } finally {
@@ -101,18 +249,70 @@ export function CitizenForm() {
                   <Label htmlFor="citizen_id">Citizen ID</Label>
                   <Input
                     id="citizen_id"
-                    placeholder="Enter 12-digit citizen ID"
+                    placeholder="Enter 13-digit citizen ID"
+                    maxLength={13}
+                    pattern="\d{13}"
+                    inputMode="numeric"
                     {...form.register("citizen_id")}
                   />
                 </div>
                 <Button
                   type="button"
                   onClick={handleGetData}
-                  disabled={isFetchingData || !/^\d{12}$/.test(form.watch("citizen_id"))}
+                  disabled={isFetchingData || !/^\d{13}$/.test(form.watch("citizen_id"))}
                   className="mt-6"
                 >
                   {isFetchingData ? "Fetching..." : "Get Data"}
                 </Button>
+              </div>
+
+              {/* Image Upload Section */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <Label className="text-lg font-semibold mb-4 block">Photograph *</Label>
+                
+                {/* Image Display */}
+                {passportPhoto && (
+                  <div className="flex justify-center mb-4">
+                    <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
+                      <img 
+                        src={passportPhoto} 
+                        alt="Citizen Photo" 
+                        className="w-32 h-40 object-cover rounded"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Upload Controls */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="block w-full text-sm text-gray-500
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-full file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-blue-50 file:text-blue-700
+                          hover:file:bg-blue-100"
+                      />
+                    </div>
+                  </div>
+                  
+                  {!passportPhoto && !imageBase64 && (
+                    <p className="text-sm text-gray-600">
+                      No image available from passport API. Please upload a photo manually.
+                    </p>
+                  )}
+                  
+                  {imageBase64 && (
+                    <p className="text-sm text-green-600">
+                      ✓ Image ready for submission (Base64 format)
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Personal Information */}
@@ -134,13 +334,17 @@ export function CitizenForm() {
                   <Input id="mother_name" {...form.register("mother_name")} />
                 </div>
                 <div>
+                  <Label htmlFor="gender">Gender</Label>
+                  <Input id="gender" {...form.register("gender")} />
+                </div>
+                <div>
                   <Label htmlFor="date_of_birth">Date of Birth</Label>
                   <Input id="date_of_birth" type="date" {...form.register("date_of_birth")} />
                 </div>
-                <div>
+                {/* <div>
                   <Label htmlFor="nationality">Nationality</Label>
                   <Input id="nationality" {...form.register("nationality")} />
-                </div>
+                </div> */}
               </div>
 
               {/* Address & Birth Information */}
@@ -171,7 +375,7 @@ export function CitizenForm() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="height">Height</Label>
-                  <Input id="height" type="number" step="0.01" placeholder="e.g., 5.9" {...form.register("height", { valueAsNumber: true })} />
+                  <Input id="height"  placeholder="e.g., 5.9" {...form.register("height")} />
                 </div>
                 <div>
                   <Label htmlFor="color_of_eyes">Eye Color</Label>
@@ -195,7 +399,7 @@ export function CitizenForm() {
                 </div>
                 <div>
                   <Label htmlFor="investor">Investor</Label>
-                  <Input id="investor" type="checkbox" {...form.register("investor")} />
+                  <Input id="transport_mode" placeholder="Gov of Pakistan" {...form.register("investor")} />
                 </div>
                 <div>
                   <Label htmlFor="requested_by">Requested By</Label>
@@ -206,6 +410,10 @@ export function CitizenForm() {
                   <Input id="reason_for_deport" {...form.register("reason_for_deport")} />
                 </div>
                 <div>
+                  <Label htmlFor="securityDeposit">Security Deposit Description (if any)</Label>
+                  <Input id="securityDeposit" placeholder="-" {...form.register("securityDeposit")} />
+                </div>
+                <div>
                   <Label htmlFor="amount">Amount</Label>
                   <Input id="amount" type="number" step="0.01" {...form.register("amount", { valueAsNumber: true })} />
                 </div>
@@ -213,14 +421,11 @@ export function CitizenForm() {
                   <Label htmlFor="currency">Currency</Label>
                   <Input id="currency" {...form.register("currency")} />
                 </div>
-                <div>
+                {/* <div>
                   <Label htmlFor="is_fia_blacklist">FIA Blacklist</Label>
                   <Input id="is_fia_blacklist" type="checkbox" {...form.register("is_fia_blacklist")} />
-                </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Input id="status" {...form.register("status")} />
-                </div>
+                </div> */}
+
               </div>
 
               {/* Submit Button */}

@@ -19,10 +19,13 @@ export interface Application {
   citizenId: string
   firstName: string
   lastName: string
+  image?: string
   fatherName: string
   motherName: string
+  gender: string
   dateOfBirth: string
-  nationality: string
+  birthCountry?: string
+  birthCity?: string
   profession: string
   pakistanCity: string
   pakistanAddress: string
@@ -30,7 +33,12 @@ export interface Application {
   colorOfEyes: string
   colorOfHair: string
   departureDate: string
+  securityDeposit: string
+  investor: string
+  requestedBy?: string
+  reason_for_deport: string
   transportMode: string
+  isFiaBlacklist?: boolean
   createdAt: string
   updatedAt: string
   submittedBy?: string
@@ -40,6 +48,32 @@ export interface Application {
   assignedAgency?: string
   attachments?: ApplicationAttachment[]
   approvalHistory?: ApprovalHistory[]
+  createdBy?: {
+    id: string
+    email: string
+    fullName: string
+    role: string
+    state?: string
+  }
+  reviewedByUser?: {
+    id: string
+    email: string
+    fullName: string
+    role: string
+  }
+  // New verification fields
+  pendingVerificationAgencies?: string[]
+  verificationCompletedAgencies?: string[]
+  agencyRemarks?: any[]
+  rejectionReason?: string
+  verificationSentAt?: string
+  verificationCompletedAt?: string
+  verificationDocumentUrl?: string
+  // ETD fields
+  etdIssueDate?: string
+  etdExpiryDate?: string
+  blacklistCheckPassed?: boolean
+  reviewedAt?: string
 }
 
 export interface ApplicationAttachment {
@@ -65,6 +99,10 @@ export type ApplicationStatus =
   | 'DRAFT' 
   | 'SUBMITTED' 
   | 'UNDER_REVIEW' 
+  | 'UNDER_VERIFICATION'
+  | 'PENDING_VERIFICATION'
+  | 'VERIFICATION_SUBMITTED'
+  | 'VERIFICATION_RECEIVED'
   | 'AGENCY_REVIEW'
   | 'MINISTRY_REVIEW'
   | 'APPROVED' 

@@ -2,12 +2,13 @@ import apiClient from "./client"
 import { User } from "../types"
 
 export interface CreateUserData {
-  name: string
   email: string
+  fullName: string
   password: string
   role: "ADMIN" | "MINISTRY" | "AGENCY" | "MISSION_OPERATOR"
-  region?: string
   agency?: string
+  state?: string
+  status: "ACTIVE" | "INACTIVE"
 }
 
 export const userAPI = {
@@ -23,9 +24,9 @@ export const userAPI = {
     return response.data
   },
 
-  // Create new user
+  // Create new user (Admin only)
   create: async (data: CreateUserData): Promise<User> => {
-    const response = await apiClient.post("/users", data)
+    const response = await apiClient.post("/auth/admin/create-user", data)
     return response.data
   },
 
@@ -38,5 +39,11 @@ export const userAPI = {
   // Delete user
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/users/${id}`)
+  },
+
+  // Fetch foreign mission offices for Ministry users
+  getForeignMissionOffices: async (): Promise<string[]> => {
+    const response = await apiClient.get("/users/foreign-mission-offices")
+    return response.data
   },
 }
