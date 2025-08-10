@@ -19,6 +19,9 @@ import { MinistryReviewModal } from "@/components/ministry/MinistryReviewModal"
 import { DraftReviewModal } from "@/components/ministry/DraftReviewModal"
 import { PDFLink } from "@/components/ui/PDFViewer"
 
+import DGIPHeader from "@/components/ui/dgip_header"
+import DGIPWatermarks from "@/components/ui/dgip_watermark"
+
 
 
 
@@ -283,11 +286,11 @@ export default function ApplicationViewPage() {
 
   const handlePrintApplication = async () => {
     if (!application) return
-    
+
     try {
       setIsActionLoading(true)
       const blob = await applicationAPI.printApplication(application.id)
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -297,7 +300,7 @@ export default function ApplicationViewPage() {
       link.click()
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
-      
+
       showNotification.success("Application downloaded successfully")
     } catch (error) {
       showNotification.error("Failed to download application")
@@ -312,7 +315,7 @@ export default function ApplicationViewPage() {
     remarks?: string
   }) => {
     if (!application) return
-    
+
     try {
       setIsActionLoading(true)
       await applicationAPI.sendForVerification(application.id, data)
@@ -331,7 +334,7 @@ export default function ApplicationViewPage() {
     attachment?: File
   }) => {
     if (!application) return
-    
+
     try {
       setIsActionLoading(true)
       await applicationAPI.submitVerification(application.id, data)
@@ -349,7 +352,7 @@ export default function ApplicationViewPage() {
     if (!application) return
     const remarks = window.prompt("Enter rejection remarks:")
     if (!remarks) return
-    
+
     try {
       setIsActionLoading(true)
       await applicationAPI.updateStatus(application.id, {
@@ -390,277 +393,277 @@ export default function ApplicationViewPage() {
   }
 
   return (
-    <div className="bg-background">
-    <div className="max-w-6xl mx-auto p-6 space-y-6 ">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
-        <div className="flex items-center gap-2">
-          <Badge variant={getStatusVariant(application.status)}>
-            {formatStatus(application.status)}
-          </Badge>
-          {canPrint && (
-            <Button onClick={() => router.push(`/applications/${application.id}/print`)}>
-              <Printer className="mr-2 h-4 w-4" /> Print
-            </Button>
-          )}
+    <div className="min-h-screen relative" style={{ backgroundColor: "#E5EDFF" }}>
+      <DGIPWatermarks layerZ={0} />
+
+      <div className="max-w-6xl mx-auto p-6 space-y-6 relative z-10">
+
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={() => router.back()}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+          <div className="flex items-center gap-2">
+            <Badge variant={getStatusVariant(application.status)}>
+              {formatStatus(application.status)}
+            </Badge>
+            {canPrint && (
+              <Button onClick={() => router.push(`/applications/${application.id}/print`)}>
+                <Printer className="mr-2 h-4 w-4" /> Print
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Application #{application.id}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Photograph Section */}
-          {application.image && (
-            <div className="mb-6">
-              <Section title="Photograph">
-                <div className="flex justify-center">
-                  <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
-                    <img 
-                      src={`data:image/jpeg;base64,${application.image}`}
-                      alt="Citizen Photograph" 
-                      className="w-32 h-40 object-cover rounded"
-                    />
+        <DGIPHeader />
+        <Card>
+          <CardHeader>
+            <CardTitle>Application #{application.id}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Photograph Section */}
+            {application.image && (
+              <div className="mb-6">
+                <Section title="Photograph">
+                  <div className="flex justify-center">
+                    <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
+                      <img
+                        src={`data:image/jpeg;base64,${application.image}`}
+                        alt="Citizen Photograph"
+                        className="w-32 h-40 object-cover rounded"
+                      />
+                    </div>
                   </div>
-                </div>
-              </Section>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <Section title="Personal Information">
-                <GridItem label="First Name" value={application.firstName} />
-                <GridItem label="Last Name" value={application.lastName} />
-                <GridItem label="Father's Name" value={application.fatherName} />
-                <GridItem label="Mother's Name" value={application.motherName} />
-                <GridItem label="Citizen ID" value={application.citizenId} mono />
-                <GridItem label="Date of Birth" value={formatDate(application.dateOfBirth)} />
-                <GridItem label="Birth Country" value={application.birthCountry || '-'} />
-                <GridItem label="Birth City" value={application.birthCity || '-'} />
-                <GridItem label="Profession" value={application.profession} />
-              </Section>
-            </div>
-            <div className="space-y-4">
-              <Section title="Physical & Address">
-                <GridItem label="Height" value={String(application.height)} />
-                <GridItem label="Eye Color" value={application.colorOfEyes} />
-                <GridItem label="Hair Color" value={application.colorOfHair} />
-                <GridItem label="City" value={application.pakistanCity} />
-                <GridItem label="Address" value={application.pakistanAddress} />
-              </Section>
-            </div>
-          </div>
-
-          <div className="mt-6">
-            <Section title="Travel Information">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <GridItem label="Departure Date" value={formatDate(application.departureDate)} />
-                <GridItem label="Transport Mode" value={application.transportMode} />
+                </Section>
               </div>
-            </Section>
-          </div>
+            )}
 
-                     {/* Blacklist Check Flag - Highlighted Section */}
-           {application.blacklistCheckPassed !== undefined && (
-             <div className="mt-6">
-               <div className={`p-4 rounded-lg border-2 ${
-                 application.blacklistCheckPassed 
-                   ? 'bg-green-50 border-green-300' 
-                   : 'bg-red-50 border-red-300'
-               }`}>
-                 <div className="flex items-center gap-3">
-                   <div className={`p-2 rounded-full ${
-                     application.blacklistCheckPassed 
-                       ? 'bg-green-100 text-green-600' 
-                       : 'bg-red-100 text-red-600'
-                   }`}>
-                     {application.blacklistCheckPassed ? (
-                       <CheckCircle className="h-5 w-5" />
-                     ) : (
-                       <XCircle className="h-5 w-5" />
-                     )}
-                   </div>
-                   <div>
-                     <h4 className={`font-semibold ${
-                       application.blacklistCheckPassed 
-                         ? 'text-green-800' 
-                         : 'text-red-800'
-                     }`}>
-                       Blacklist Check Status
-                     </h4>
-                     <p className={`text-sm ${
-                       application.blacklistCheckPassed 
-                         ? 'text-green-700' 
-                         : 'text-red-700'
-                     }`}>
-                       {application.blacklistCheckPassed 
-                         ? 'Passed - No blacklist issues found' 
-                         : 'Failed - Blacklist issues detected (Application still approved)'
-                       }
-                     </p>
-                   </div>
-                 </div>
-               </div>
-             </div>
-           )}
-
-           {/* Rejection Reason - Highlighted Section */}
-           {application.status === "REJECTED" && application.rejectionReason && (
-             <div className="mt-6">
-               <div className="p-4 rounded-lg border-2 bg-red-50 border-red-300">
-                 <div className="flex items-start gap-3">
-                   <div className="p-2 rounded-full bg-red-100 text-red-600 mt-1">
-                     <XCircle className="h-5 w-5" />
-                   </div>
-                   <div className="flex-1">
-                     <h4 className="font-semibold text-red-800 mb-2">
-                       Application Rejected
-                     </h4>
-                     <div className="bg-white p-3 rounded border border-red-200">
-                       <p className="text-sm text-gray-600 mb-1">Rejection Reason:</p>
-                       <p className="text-red-800 font-medium">
-                         {application.rejectionReason}
-                       </p>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-             </div>
-           )}
-
-           <div className="mt-6">
-             <Section title="Request & Flags">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <GridItem label="Investor" value={application.investor || '-'} />
-                 <GridItem label="Requested By" value={application.requestedBy || '-'} />
-                 <GridItem label="Reason for Deport" value={application.reason_for_deport} />
-                 <GridItem label="Amount" value={application.securityDeposit || '-'} />
-                 <GridItem label="FIA Blacklist" value={application.isFiaBlacklist ? "Yes" : "No"} />
-               </div>
-             </Section>
-           </div>
-
-          <div className="mt-6">
-            <Section title="Status & Audit">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <GridItem label="Status" value={formatStatus(application.status)} />
-                <GridItem label="Created At" value={formatDate(application.createdAt)} />
-                <GridItem label="Last Updated" value={formatDate(application.updatedAt)} />
-                {application.createdBy?.fullName && (
-                  <GridItem 
-                    label="Created By" 
-                    value={`${application.createdBy.fullName}${application.createdBy.state ? ` (${application.createdBy.state})` : ` (${application.createdBy.role})`}`} 
-                  />
-                )}
-                {application.reviewedByUser?.fullName && (
-                  <GridItem label="Reviewed By" value={`${application.reviewedByUser.fullName} (${application.reviewedByUser.role})`} />
-                )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <Section title="Personal Information">
+                  <GridItem label="First Name" value={application.firstName} />
+                  <GridItem label="Last Name" value={application.lastName} />
+                  <GridItem label="Father's Name" value={application.fatherName} />
+                  <GridItem label="Mother's Name" value={application.motherName} />
+                  <GridItem label="Citizen ID" value={application.citizenId} mono />
+                  <GridItem label="Date of Birth" value={formatDate(application.dateOfBirth)} />
+                  <GridItem label="Birth Country" value={application.birthCountry || '-'} />
+                  <GridItem label="Birth City" value={application.birthCity || '-'} />
+                  <GridItem label="Profession" value={application.profession} />
+                </Section>
               </div>
-            </Section>
-          </div>
+              <div className="space-y-4">
+                <Section title="Physical & Address">
+                  <GridItem label="Height" value={String(application.height)} />
+                  <GridItem label="Eye Color" value={application.colorOfEyes} />
+                  <GridItem label="Hair Color" value={application.colorOfHair} />
+                  <GridItem label="City" value={application.pakistanCity} />
+                  <GridItem label="Address" value={application.pakistanAddress} />
+                </Section>
+              </div>
+            </div>
 
-          {/* ETD Information - Only show for approved applications */}
-          {application.status === "APPROVED" && (application.etdIssueDate || application.etdExpiryDate || application.blacklistCheckPassed !== undefined) && (
             <div className="mt-6">
-              <Section title="Emergency Travel Document (ETD) Information">
+              <Section title="Travel Information">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {application.etdIssueDate && (
-                    <GridItem label="ETD Issue Date" value={formatDate(application.etdIssueDate)} />
-                  )}
-                  {application.etdExpiryDate && (
-                    <GridItem label="ETD Expiry Date" value={formatDate(application.etdExpiryDate)} />
-                  )}
-                  {application.blacklistCheckPassed !== undefined && (
-                    <GridItem 
-                      label="Blacklist Check Status" 
-                      value={application.blacklistCheckPassed ? "Passed" : "Failed (Still Approved)"} 
-                    />
-                  )}
-                  {application.reviewedAt && (
-                    <GridItem label="Reviewed At" value={formatDateTime(application.reviewedAt)} />
-                  )}
+                  <GridItem label="Departure Date" value={formatDate(application.departureDate)} />
+                  <GridItem label="Transport Mode" value={application.transportMode} />
                 </div>
               </Section>
             </div>
-          )}
 
-          {/* Agency Verification Remarks - Only visible to Ministry and Admin */}
-          {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_RECEIVED" && application.agencyRemarks && application.agencyRemarks.length > 0 && (
-            <div className="mt-6">
-              <Section title="Agency Verification Results">
-                <div className="space-y-4">
-                  {application.agencyRemarks.map((remark: any, index: number) => (
-                    <div key={index} className="border rounded-lg p-4 bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <GridItem label="Agency" value={remark.agency || 'Unknown'} />
-                        <GridItem label="Submitted At" value={remark.submittedAt ? formatDateTime(remark.submittedAt) : 'N/A'} />
-                      </div>
-                      <div className="mt-3">
-                        <GridItem label="Remarks" value={remark.remarks || 'No remarks provided'} />
-                      </div>
-                      {remark.attachmentUrl && (
-                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm font-medium text-blue-800">PDF Attachment</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <PDFLink 
-                                url=""
-                                fileName={`verification-${remark.agency}-${remark.submittedAt}.pdf`}
-                                className="text-blue-600 hover:text-blue-800"
-                                applicationId={params.id as string}
-                                agency={remark.agency}
-                              >
-                              </PDFLink>
-                              <span className="text-gray-400">|</span>
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    const blob = await applicationAPI.downloadVerificationAttachment(
-                                      params.id as string, 
-                                      remark.agency
-                                    )
-                                    const downloadUrl = URL.createObjectURL(blob)
-                                    
-                                    const link = document.createElement('a')
-                                    link.href = downloadUrl
-                                    link.download = `verification-${remark.agency}-${remark.submittedAt}.pdf`
-                                    document.body.appendChild(link)
-                                    link.click()
-                                    document.body.removeChild(link)
-                                    
-                                    // Clean up the blob URL
-                                    setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000)
-                                  } catch (error) {
-                                    console.error('Download failed:', error)
-                                    showNotification.error('Failed to download file')
-                                  }
-                                }}
-                                className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
-                              >
-                                <Download className="h-4 w-4" />
-                                Download
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+            {/* Blacklist Check Flag - Highlighted Section */}
+            {application.blacklistCheckPassed !== undefined && (
+              <div className="mt-6">
+                <div className={`p-4 rounded-lg border-2 ${application.blacklistCheckPassed
+                    ? 'bg-green-50 border-green-300'
+                    : 'bg-red-50 border-red-300'
+                  }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-full ${application.blacklistCheckPassed
+                        ? 'bg-green-100 text-green-600'
+                        : 'bg-red-100 text-red-600'
+                      }`}>
+                      {application.blacklistCheckPassed ? (
+                        <CheckCircle className="h-5 w-5" />
+                      ) : (
+                        <XCircle className="h-5 w-5" />
                       )}
                     </div>
-                  ))}
+                    <div>
+                      <h4 className={`font-semibold ${application.blacklistCheckPassed
+                          ? 'text-green-800'
+                          : 'text-red-800'
+                        }`}>
+                        Blacklist Check Status
+                      </h4>
+                      <p className={`text-sm ${application.blacklistCheckPassed
+                          ? 'text-green-700'
+                          : 'text-red-700'
+                        }`}>
+                        {application.blacklistCheckPassed
+                          ? 'Passed - No blacklist issues found'
+                          : 'Failed - Blacklist issues detected (Application still approved)'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Rejection Reason - Highlighted Section */}
+            {application.status === "REJECTED" && application.rejectionReason && (
+              <div className="mt-6">
+                <div className="p-4 rounded-lg border-2 bg-red-50 border-red-300">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-full bg-red-100 text-red-600 mt-1">
+                      <XCircle className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-red-800 mb-2">
+                        Application Rejected
+                      </h4>
+                      <div className="bg-white p-3 rounded border border-red-200">
+                        <p className="text-sm text-gray-600 mb-1">Rejection Reason:</p>
+                        <p className="text-red-800 font-medium">
+                          {application.rejectionReason}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6">
+              <Section title="Request & Flags">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <GridItem label="Investor" value={application.investor || '-'} />
+                  <GridItem label="Requested By" value={application.requestedBy || '-'} />
+                  <GridItem label="Reason for Deport" value={application.reason_for_deport} />
+                  <GridItem label="Amount" value={application.securityDeposit || '-'} />
+                  <GridItem label="FIA Blacklist" value={application.isFiaBlacklist ? "Yes" : "No"} />
                 </div>
               </Section>
             </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* <Card>
+            <div className="mt-6">
+              <Section title="Status & Audit">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <GridItem label="Status" value={formatStatus(application.status)} />
+                  <GridItem label="Created At" value={formatDate(application.createdAt)} />
+                  <GridItem label="Last Updated" value={formatDate(application.updatedAt)} />
+                  {application.createdBy?.fullName && (
+                    <GridItem
+                      label="Created By"
+                      value={`${application.createdBy.fullName}${application.createdBy.state ? ` (${application.createdBy.state})` : ` (${application.createdBy.role})`}`}
+                    />
+                  )}
+                  {application.reviewedByUser?.fullName && (
+                    <GridItem label="Reviewed By" value={`${application.reviewedByUser.fullName} (${application.reviewedByUser.role})`} />
+                  )}
+                </div>
+              </Section>
+            </div>
+
+            {/* ETD Information - Only show for approved applications */}
+            {application.status === "APPROVED" && (application.etdIssueDate || application.etdExpiryDate || application.blacklistCheckPassed !== undefined) && (
+              <div className="mt-6">
+                <Section title="Emergency Travel Document (ETD) Information">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {application.etdIssueDate && (
+                      <GridItem label="ETD Issue Date" value={formatDate(application.etdIssueDate)} />
+                    )}
+                    {application.etdExpiryDate && (
+                      <GridItem label="ETD Expiry Date" value={formatDate(application.etdExpiryDate)} />
+                    )}
+                    {application.blacklistCheckPassed !== undefined && (
+                      <GridItem
+                        label="Blacklist Check Status"
+                        value={application.blacklistCheckPassed ? "Passed" : "Failed (Still Approved)"}
+                      />
+                    )}
+                    {application.reviewedAt && (
+                      <GridItem label="Reviewed At" value={formatDateTime(application.reviewedAt)} />
+                    )}
+                  </div>
+                </Section>
+              </div>
+            )}
+
+            {/* Agency Verification Remarks - Only visible to Ministry and Admin */}
+            {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_RECEIVED" && application.agencyRemarks && application.agencyRemarks.length > 0 && (
+              <div className="mt-6">
+                <Section title="Agency Verification Results">
+                  <div className="space-y-4">
+                    {application.agencyRemarks.map((remark: any, index: number) => (
+                      <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <GridItem label="Agency" value={remark.agency || 'Unknown'} />
+                          <GridItem label="Submitted At" value={remark.submittedAt ? formatDateTime(remark.submittedAt) : 'N/A'} />
+                        </div>
+                        <div className="mt-3">
+                          <GridItem label="Remarks" value={remark.remarks || 'No remarks provided'} />
+                        </div>
+                        {remark.attachmentUrl && (
+                          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-800">PDF Attachment</span>
+                              </div>
+                              <div className="flex gap-2">
+                                <PDFLink
+                                  url=""
+                                  fileName={`verification-${remark.agency}-${remark.submittedAt}.pdf`}
+                                  className="text-blue-600 hover:text-blue-800"
+                                  applicationId={params.id as string}
+                                  agency={remark.agency}
+                                >
+                                </PDFLink>
+                                <span className="text-gray-400">|</span>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const blob = await applicationAPI.downloadVerificationAttachment(
+                                        params.id as string,
+                                        remark.agency
+                                      )
+                                      const downloadUrl = URL.createObjectURL(blob)
+
+                                      const link = document.createElement('a')
+                                      link.href = downloadUrl
+                                      link.download = `verification-${remark.agency}-${remark.submittedAt}.pdf`
+                                      document.body.appendChild(link)
+                                      link.click()
+                                      document.body.removeChild(link)
+
+                                      // Clean up the blob URL
+                                      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000)
+                                    } catch (error) {
+                                      console.error('Download failed:', error)
+                                      showNotification.error('Failed to download file')
+                                    }
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  Download
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Section>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* <Card>
         <CardHeader>
           <CardTitle>Attachments</CardTitle>
         </CardHeader>
@@ -712,181 +715,181 @@ export default function ApplicationViewPage() {
         </CardContent>
       </Card> */}
 
-      {/* Verification Document - For Agency Users */}
-      {role === "AGENCY" && application.status === "PENDING_VERIFICATION" && application.verificationDocumentUrl && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Verification Document</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-3">
-                <FileText className="h-8 w-8 text-blue-600" />
-                <div>
-                  <h4 className="font-medium text-blue-900">PDF Attachment</h4>
-                  <p className="text-sm text-blue-700">Verification document from Ministry</p>
+        {/* Verification Document - For Agency Users */}
+        {role === "AGENCY" && application.status === "PENDING_VERIFICATION" && application.verificationDocumentUrl && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Verification Document</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-8 w-8 text-blue-600" />
+                  <div>
+                    <h4 className="font-medium text-blue-900">PDF Attachment</h4>
+                    <p className="text-sm text-blue-700">Verification document from Ministry</p>
+                  </div>
                 </div>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const blob = await applicationAPI.downloadVerificationDocument(application.id)
+                      const url = URL.createObjectURL(blob)
+
+                      const link = document.createElement('a')
+                      link.href = url
+                      link.download = `verification-document-${application.id.substring(0, 8)}.pdf`
+                      document.body.appendChild(link)
+                      link.click()
+                      document.body.removeChild(link)
+
+                      setTimeout(() => URL.revokeObjectURL(url), 1000)
+                    } catch (error) {
+                      console.error('Download failed:', error)
+                      showNotification.error('Failed to download document')
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </Button>
               </div>
-              <Button
-                onClick={async () => {
-                  try {
-                    const blob = await applicationAPI.downloadVerificationDocument(application.id)
-                    const url = URL.createObjectURL(blob)
-                    
-                    const link = document.createElement('a')
-                    link.href = url
-                    link.download = `verification-document-${application.id.substring(0, 8)}.pdf`
-                    document.body.appendChild(link)
-                    link.click()
-                    document.body.removeChild(link)
-                    
-                    setTimeout(() => URL.revokeObjectURL(url), 1000)
-                  } catch (error) {
-                    console.error('Download failed:', error)
-                    showNotification.error('Failed to download document')
-                  }
-                }}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Download
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
 
-      {canPerformAction && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              {/* Agency Actions for Verification */}
-              {role === "AGENCY" && application.status === "PENDING_VERIFICATION" && (
-                <Button onClick={() => setShowSubmitVerificationModal(true)} disabled={isActionLoading}>
-                  <Upload className="mr-2 h-4 w-4" /> Submit Verification
-                </Button>
-              )}
+        {canPerformAction && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-3">
+                {/* Agency Actions for Verification */}
+                {role === "AGENCY" && application.status === "PENDING_VERIFICATION" && (
+                  <Button onClick={() => setShowSubmitVerificationModal(true)} disabled={isActionLoading}>
+                    <Upload className="mr-2 h-4 w-4" /> Submit Verification
+                  </Button>
+                )}
 
-              {/* Legacy Agency Actions (for old workflow) */}
-              {role === "AGENCY" && ["SUBMITTED", "AGENCY_REVIEW"].includes(application.status) && (
-                <>
-                  <Button onClick={handleAgencyApprove} disabled={isActionLoading}>
-                    <CheckCircle className="mr-2 h-4 w-4" /> Approve & Send to Ministry
-                  </Button>
-                  <Button onClick={handleAgencyReject} variant="destructive" disabled={isActionLoading}>
-                    <XCircle className="mr-2 h-4 w-4" /> Reject with Remarks
-                  </Button>
-                </>
-              )}
+                {/* Legacy Agency Actions (for old workflow) */}
+                {role === "AGENCY" && ["SUBMITTED", "AGENCY_REVIEW"].includes(application.status) && (
+                  <>
+                    <Button onClick={handleAgencyApprove} disabled={isActionLoading}>
+                      <CheckCircle className="mr-2 h-4 w-4" /> Approve & Send to Ministry
+                    </Button>
+                    <Button onClick={handleAgencyReject} variant="destructive" disabled={isActionLoading}>
+                      <XCircle className="mr-2 h-4 w-4" /> Reject with Remarks
+                    </Button>
+                  </>
+                )}
 
-              {/* Ministry Actions for DRAFT Applications */}
-              {(role === "MINISTRY" || role === "ADMIN") && application.status === "DRAFT" && (
-                <>
-                  <Button 
-                    onClick={() => setShowDraftReviewModal(true)} 
-                    disabled={isActionLoading}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <CheckCircle className="mr-2 h-4 w-4" /> Review Application
-                  </Button>
-                  <Button onClick={() => setShowSendForVerificationModal(true)} disabled={isActionLoading}>
-                    <Send className="mr-2 h-4 w-4" /> Send for Verification
-                  </Button>
-                </>
-              )}
-              
-              {/* Ministry Actions for VERIFICATION_SUBMITTED Applications */}
-              {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_SUBMITTED" && (
-                <>
-                  <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
-                    <CheckCircle className="mr-2 h-4 w-4" /> Approve
-                  </Button>
-                  <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
-                    <XCircle className="mr-2 h-4 w-4" /> Reject
-                  </Button>
-                </>
-              )}
+                {/* Ministry Actions for DRAFT Applications */}
+                {(role === "MINISTRY" || role === "ADMIN") && application.status === "DRAFT" && (
+                  <>
+                    <Button
+                      onClick={() => setShowDraftReviewModal(true)}
+                      disabled={isActionLoading}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" /> Review Application
+                    </Button>
+                    <Button onClick={() => setShowSendForVerificationModal(true)} disabled={isActionLoading}>
+                      <Send className="mr-2 h-4 w-4" /> Send for Verification
+                    </Button>
+                  </>
+                )}
 
-              {/* Ministry Actions for VERIFICATION_RECEIVED Applications */}
-              {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_RECEIVED" && (
-                <>
-                  <Button 
-                    onClick={() => setShowMinistryReviewModal(true)} 
-                    disabled={isActionLoading}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <CheckCircle className="mr-2 h-4 w-4" /> Review Application
-                  </Button>
-                </>
-              )}
+                {/* Ministry Actions for VERIFICATION_SUBMITTED Applications */}
+                {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_SUBMITTED" && (
+                  <>
+                    <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
+                      <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                    </Button>
+                    <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
+                      <XCircle className="mr-2 h-4 w-4" /> Reject
+                    </Button>
+                  </>
+                )}
 
-              {/* Ministry Actions for Other Statuses (Legacy workflow) */}
-              {(role === "MINISTRY" || role === "ADMIN") && 
-               ["SUBMITTED", "UNDER_REVIEW", "AGENCY_REVIEW", "MINISTRY_REVIEW"].includes(application.status) && (
-                <>
-                  <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
-                    <CheckCircle className="mr-2 h-4 w-4" /> Approve
-                  </Button>
-                  <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
-                    <XCircle className="mr-2 h-4 w-4" /> Reject
-                  </Button>
-                  <Button onClick={handleBlacklist} variant="destructive" disabled={isActionLoading}>
-                    <AlertTriangle className="mr-2 h-4 w-4" /> Blacklist
-                  </Button>
-                  <Button onClick={handleSendToAgency} variant="secondary" disabled={isActionLoading}>
-                    <Send className="mr-2 h-4 w-4" /> Send to Agency
-                  </Button>
-                </>
-              )}
+                {/* Ministry Actions for VERIFICATION_RECEIVED Applications */}
+                {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_RECEIVED" && (
+                  <>
+                    <Button
+                      onClick={() => setShowMinistryReviewModal(true)}
+                      disabled={isActionLoading}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" /> Review Application
+                    </Button>
+                  </>
+                )}
 
-              {/* Mission Operator Print Action */}
-              {role === "MISSION_OPERATOR" && canPrint && (
-                <Button onClick={handlePrintApplication} disabled={isActionLoading}>
-                  <Printer className="mr-2 h-4 w-4" /> Print Application
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-    
-    {/* Modals */}
-    <SendForVerificationModal
-      isOpen={showSendForVerificationModal}
-      onClose={() => setShowSendForVerificationModal(false)}
-      onSubmit={handleSendForVerification}
-      isLoading={isActionLoading}
-    />
-    
-    <SubmitVerificationModal
-      isOpen={showSubmitVerificationModal}
-      onClose={() => setShowSubmitVerificationModal(false)}
-      onSubmit={handleSubmitVerification}
-      isLoading={isActionLoading}
-      applicationId={application?.id}
-    />
+                {/* Ministry Actions for Other Statuses (Legacy workflow) */}
+                {(role === "MINISTRY" || role === "ADMIN") &&
+                  ["SUBMITTED", "UNDER_REVIEW", "AGENCY_REVIEW", "MINISTRY_REVIEW"].includes(application.status) && (
+                    <>
+                      <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
+                        <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                      </Button>
+                      <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
+                        <XCircle className="mr-2 h-4 w-4" /> Reject
+                      </Button>
+                      <Button onClick={handleBlacklist} variant="destructive" disabled={isActionLoading}>
+                        <AlertTriangle className="mr-2 h-4 w-4" /> Blacklist
+                      </Button>
+                      <Button onClick={handleSendToAgency} variant="secondary" disabled={isActionLoading}>
+                        <Send className="mr-2 h-4 w-4" /> Send to Agency
+                      </Button>
+                    </>
+                  )}
 
-    <MinistryReviewModal
-      isOpen={showMinistryReviewModal}
-      onClose={() => setShowMinistryReviewModal(false)}
-      onApprove={handleMinistryReviewApprove}
-      onReject={handleMinistryReviewReject}
-      isLoading={isActionLoading}
-    />
+                {/* Mission Operator Print Action */}
+                {role === "MISSION_OPERATOR" && canPrint && (
+                  <Button onClick={handlePrintApplication} disabled={isActionLoading}>
+                    <Printer className="mr-2 h-4 w-4" /> Print Application
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
-    <DraftReviewModal
-      isOpen={showDraftReviewModal}
-      onClose={() => setShowDraftReviewModal(false)}
-      onApprove={handleDraftApprove}
-      onReject={handleDraftReject}
-      isLoading={isActionLoading}
-    />
+      {/* Modals */}
+      <SendForVerificationModal
+        isOpen={showSendForVerificationModal}
+        onClose={() => setShowSendForVerificationModal(false)}
+        onSubmit={handleSendForVerification}
+        isLoading={isActionLoading}
+      />
+
+      <SubmitVerificationModal
+        isOpen={showSubmitVerificationModal}
+        onClose={() => setShowSubmitVerificationModal(false)}
+        onSubmit={handleSubmitVerification}
+        isLoading={isActionLoading}
+        applicationId={application?.id}
+      />
+
+      <MinistryReviewModal
+        isOpen={showMinistryReviewModal}
+        onClose={() => setShowMinistryReviewModal(false)}
+        onApprove={handleMinistryReviewApprove}
+        onReject={handleMinistryReviewReject}
+        isLoading={isActionLoading}
+      />
+
+      <DraftReviewModal
+        isOpen={showDraftReviewModal}
+        onClose={() => setShowDraftReviewModal(false)}
+        onApprove={handleDraftApprove}
+        onReject={handleDraftReject}
+        isLoading={isActionLoading}
+      />
     </div>
   )
 }
