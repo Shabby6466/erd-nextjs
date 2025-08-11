@@ -154,9 +154,9 @@ export function CitizenForm() {
     }
   }
 
-  // Handler for photo card "Get Data" button
-  const handlePhotoCardGetData = async (citizenId: string, imageBase64: string | null) => {
-    console.log("handlePhotoCardGetData called with:", { citizenId, hasImage: !!imageBase64 })
+  // Handler for immediate navigation from photo card
+  const handlePhotoCardNavigate = (citizenId: string, imageBase64: string | null) => {
+    console.log("handlePhotoCardNavigate called with:", { citizenId, hasImage: !!imageBase64 })
     
     if (!/^\d{13}$/.test(citizenId)) {
       showNotification.error("Please enter a valid 13-digit citizen ID")
@@ -176,6 +176,24 @@ export function CitizenForm() {
       setPassportPhoto(`data:image/jpeg;base64,${imageBase64}`)
       setImageBase64(imageBase64)
     }
+
+    // Immediately show the full form
+    setShowFullForm(true)
+    
+    // Start fetching data in the background
+    handlePhotoCardGetData(citizenId, imageBase64)
+  }
+
+  // Handler for photo card "Get Data" button (background API calls)
+  const handlePhotoCardGetData = async (citizenId: string, imageBase64: string | null) => {
+    console.log("handlePhotoCardGetData called with:", { citizenId, hasImage: !!imageBase64 })
+    
+    if (!/^\d{13}$/.test(citizenId)) {
+      showNotification.error("Please enter a valid 13-digit citizen ID")
+      return
+    }
+
+    // Note: Form values are already set by handlePhotoCardNavigate
 
     setIsFetchingData(true)
     try {
@@ -224,8 +242,7 @@ export function CitizenForm() {
       }
     } finally {
       setIsFetchingData(false)
-      // Always show the full form after attempting to fetch data
-      setShowFullForm(true)
+      // Don't show full form here - it's already shown by navigation
     }
   }
 
@@ -330,12 +347,10 @@ export function CitizenForm() {
           // Show photo card first
           <ETDApplicationPhotoCard
             title="Emergency Travel Document Application"
-            onGetData={(citizenId) => {
+            onNavigate={(citizenId, imageBase64) => {
               console.log("Get Data pressed with citizen ID:", citizenId)
               console.log("Current imageBase64:", imageBase64)
-              // Get the current image from the photo card state
-              const currentImage = imageBase64 || null
-              handlePhotoCardGetData(citizenId, currentImage)
+              handlePhotoCardNavigate(citizenId, imageBase64)
             }}
             onImageChange={(base64) => {
               console.log("Image changed:", base64 ? "has image" : "no image")

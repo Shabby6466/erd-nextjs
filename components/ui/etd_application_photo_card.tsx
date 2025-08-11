@@ -19,6 +19,7 @@ type Props = {
   onGetData?: (citizenNumber: string) => void
   onDelete?: () => void
   onImageChange?: (base64: string | null) => void // returns base64 (no prefix) or null on delete
+  onNavigate?: (citizenNumber: string, imageBase64: string | null) => void // new navigation callback
 }
 
 export default function ETDApplicationPhotoCard({
@@ -31,6 +32,7 @@ export default function ETDApplicationPhotoCard({
   onGetData,
   onDelete,
   onImageChange,
+  onNavigate,
 }: Props) {
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [citizen, setCitizen] = useState(initialCitizenNumber)
@@ -88,7 +90,12 @@ export default function ETDApplicationPhotoCard({
       alert("Please enter a valid 13-digit citizen ID")
       return
     }
-    console.log("Calling onGetData with citizen:", citizen)
+    console.log("Calling onNavigate with citizen:", citizen, "and image:", photoB64 ? "has image" : "no image")
+    
+    // Call navigation callback immediately with current data
+    onNavigate?.(citizen, photoB64)
+    
+    // Also call the original onGetData for backward compatibility
     onGetData?.(citizen)
   }
 
