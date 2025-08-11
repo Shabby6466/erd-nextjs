@@ -17,13 +17,16 @@ import { nadraAPI } from "@/lib/api/nadra"
 import { passportAPI, type PassportApiResponse } from "@/lib/api/passport"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { DGIPHeaderWithWatermarks } from "@/components/ui/dgip_header_watermarks"
+import ETDApplicationPhotoCard from "@/components/ui/etd_application_photo_card"
 
 export function CitizenForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isFetchingData, setIsFetchingData] = useState(false)
   const [passportPhoto, setPassportPhoto] = useState<string | null>(null)
   const [imageBase64, setImageBase64] = useState<string>("")
-  // Removed uploadedImage state as it's not being used
+  const [showFullForm, setShowFullForm] = useState(false)
+  const [initialCitizenId, setInitialCitizenId] = useState("")
+  const [initialImageBase64, setInitialImageBase64] = useState<string>("")
   const router = useRouter()
   const { user } = useAuthStore()
 
@@ -77,10 +80,10 @@ export function CitizenForm() {
   const form = useForm<CitizenFormData>({
     resolver: zodResolver(citizenSchema),
     defaultValues: {
-      citizen_id: "",
+      citizen_id: initialCitizenId,
       first_name: "",
       last_name: "",
-      image: "",
+      image: initialImageBase64,
       father_name: "",
       mother_name: "",
       gender: "",
@@ -151,6 +154,82 @@ export function CitizenForm() {
     }
   }
 
+  // Handler for photo card "Get Data" button
+  const handlePhotoCardGetData = async (citizenId: string, imageBase64: string | null) => {
+    console.log("handlePhotoCardGetData called with:", { citizenId, hasImage: !!imageBase64 })
+    
+    if (!/^\d{13}$/.test(citizenId)) {
+      showNotification.error("Please enter a valid 13-digit citizen ID")
+      return
+    }
+
+    // Set initial values from photo card
+    setInitialCitizenId(citizenId)
+    setInitialImageBase64(imageBase64 || "")
+    
+    // Set form values
+    form.setValue("citizen_id", citizenId)
+    form.setValue("image", imageBase64 || "")
+    
+    // Set photo for display if available
+    if (imageBase64) {
+      setPassportPhoto(`data:image/jpeg;base64,${imageBase64}`)
+      setImageBase64(imageBase64)
+    }
+
+    setIsFetchingData(true)
+    try {
+      // Try passport API first
+      const passportData = await passportAPI.getCitizenData(citizenId)
+      const mappedData = mapPassportDataToForm(passportData)
+
+      // Update form with mapped data (skip empty values)
+      Object.entries(mappedData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          form.setValue(key as keyof CitizenFormData, value)
+        }
+      })
+
+      // Set passport photo if available (override uploaded photo)
+      if (passportData.photograph) {
+        setPassportPhoto(`data:image/jpeg;base64,${passportData.photograph}`)
+        setImageBase64(passportData.photograph)
+        form.setValue("image", passportData.photograph)
+      }
+
+      showNotification.success("Data fetched successfully from Passport API")
+    } catch (passportError) {
+      console.warn('Passport API failed, trying NADRA API:', passportError)
+      try {
+        // Fallback to NADRA API
+        const data = await nadraAPI.getCitizenData(citizenId)
+        form.reset(data)
+        // Keep the uploaded photo if no passport photo available
+        if (imageBase64) {
+          form.setValue("image", imageBase64)
+          setPassportPhoto(`data:image/jpeg;base64,${imageBase64}`)
+          setImageBase64(imageBase64)
+        } else {
+          setPassportPhoto(null)
+          setImageBase64("")
+        }
+        showNotification.success("Data fetched successfully from NADRA API (no photo available - please upload manually)")
+      } catch (nadraError: unknown) {
+        const errorMessage = nadraError instanceof Error 
+          ? nadraError.message 
+          : "Failed to fetch data from both Passport and NADRA APIs"
+        showNotification.error(errorMessage)
+        // Still show the form even if API fails - user can fill manually
+        showNotification.info("You can now fill in the remaining information manually")
+      }
+    } finally {
+      setIsFetchingData(false)
+      // Always show the full form after attempting to fetch data
+      setShowFullForm(true)
+    }
+  }
+
+  // Handler for form "Get Data" button (for re-fetching data)
   const handleGetData = async () => {
     const citizenId = form.getValues("citizen_id")
     if (!/^\d{13}$/.test(citizenId)) {
@@ -247,90 +326,127 @@ export function CitizenForm() {
     <div className="min-h-screen p-4" style={{ backgroundColor: '#E5EDFF' }}>
       <DGIPHeaderWithWatermarks />
       <div className="relative z-20 max-w-4xl mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">
-              Emergency Travel Document Application
-            </CardTitle>
-            <CardDescription>
-              Enter citizen information to create a new application
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Citizen ID Section */}
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="citizen_id">Citizen ID</Label>
-                  <Input
-                    id="citizen_id"
-                    placeholder="Enter 13-digit citizen ID"
-                    maxLength={13}
-                    pattern="\d{13}"
-                    inputMode="numeric"
-                    {...form.register("citizen_id")}
-                  />
+        {!showFullForm ? (
+          // Show photo card first
+          <ETDApplicationPhotoCard
+            title="Emergency Travel Document Application"
+            onGetData={(citizenId) => {
+              console.log("Get Data pressed with citizen ID:", citizenId)
+              console.log("Current imageBase64:", imageBase64)
+              // Get the current image from the photo card state
+              const currentImage = imageBase64 || null
+              handlePhotoCardGetData(citizenId, currentImage)
+            }}
+            onImageChange={(base64) => {
+              console.log("Image changed:", base64 ? "has image" : "no image")
+              // Handle image change from photo card
+              if (base64) {
+                setImageBase64(base64)
+                form.setValue("image", base64)
+              } else {
+                setImageBase64("")
+                form.setValue("image", "")
+              }
+            }}
+          />
+        ) : (
+          // Show full form after "Get Data" is pressed
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-bold">
+                    Emergency Travel Document Application
+                  </CardTitle>
+                  <CardDescription>
+                    Enter citizen information to create a new application
+                  </CardDescription>
                 </div>
-                <Button
-                  type="button"
-                  onClick={handleGetData}
-                  disabled={isFetchingData || !/^\d{13}$/.test(form.watch("citizen_id"))}
-                  className="mt-6"
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowFullForm(false)}
+                  className="text-sm"
                 >
-                  {isFetchingData ? "Fetching..." : "Get Data"}
+                  ← Back to Photo
                 </Button>
               </div>
-
-              {/* Image Upload Section */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label className="text-lg font-semibold mb-4 block">Photograph *</Label>
-
-                {/* Image Display */}
-                {passportPhoto && (
-                  <div className="flex justify-center mb-4">
-                    <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
-                      <Image
-                        src={passportPhoto}
-                        alt="Citizen Photo"
-                        width={128}
-                        height={160}
-                        className="object-cover rounded"
-                      />
-                    </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Citizen ID Section */}
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="citizen_id">Citizen ID</Label>
+                    <Input
+                      id="citizen_id"
+                      placeholder="Enter 13-digit citizen ID"
+                      maxLength={13}
+                      pattern="\d{13}"
+                      inputMode="numeric"
+                      {...form.register("citizen_id")}
+                    />
                   </div>
-                )}
-
-                {/* Upload Controls */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="block w-full text-sm text-gray-500
-                          file:mr-4 file:py-2 file:px-4
-                          file:rounded-full file:border-0
-                          file:text-sm file:font-semibold
-                          file:bg-blue-50 file:text-blue-700
-                          hover:file:bg-blue-100"
-                      />
-                    </div>
-                  </div>
-
-                  {!passportPhoto && !imageBase64 && (
-                    <p className="text-sm text-gray-600">
-                      No image available from passport API. Please upload a photo manually.
-                    </p>
-                  )}
-
-                  {imageBase64 && (
-                    <p className="text-sm text-green-600">
-                      ✓ Image ready for submission (Base64 format)
-                    </p>
-                  )}
+                  <Button
+                    type="button"
+                    onClick={handleGetData}
+                    disabled={isFetchingData || !/^\d{13}$/.test(form.watch("citizen_id"))}
+                    className="mt-6"
+                  >
+                    {isFetchingData ? "Fetching..." : "Get Data"}
+                  </Button>
                 </div>
-              </div>
+
+                {/* Image Upload Section */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <Label className="text-lg font-semibold mb-4 block">Photograph *</Label>
+
+                  {/* Image Display */}
+                  {passportPhoto && (
+                    <div className="flex justify-center mb-4">
+                      <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
+                        <Image
+                          src={passportPhoto}
+                          alt="Citizen Photo"
+                          width={128}
+                          height={160}
+                          className="object-cover rounded"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload Controls */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-full file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-blue-50 file:text-blue-700
+                            hover:file:bg-blue-100"
+                        />
+                      </div>
+                    </div>
+
+                    {!passportPhoto && !imageBase64 && (
+                      <p className="text-sm text-gray-600">
+                        No image available from passport API. Please upload a photo manually.
+                      </p>
+                    )}
+
+                    {imageBase64 && (
+                      <p className="text-sm text-green-600">
+                        ✓ Image ready for submission (Base64 format)
+                      </p>
+                    )}
+                  </div>
+                </div>
 
               {/* Personal Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -457,6 +573,7 @@ export function CitizenForm() {
             </form>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   )
