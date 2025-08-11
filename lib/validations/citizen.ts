@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 export const citizenSchema = z.object({
+  title:z.string(),
   citizen_id: z
     .string({ invalid_type_error: "citizen_id must be a 13-digit number string", required_error: "citizen_id must be a 13-digit number string" })
     .length(13, "citizen_id must be exactly 13 digits")

@@ -110,10 +110,7 @@ export default function PrintApplicationPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="font-medium text-gray-700">Nationality:</label>
-                <p className="text-gray-900">{application.nationality}</p>
-              </div>
+              
               <div>
                 <label className="font-medium text-gray-700">Profession:</label>
                 <p className="text-gray-900">{application.profession}</p>

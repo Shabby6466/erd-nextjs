@@ -18,6 +18,7 @@ import { passportAPI, type PassportApiResponse } from "@/lib/api/passport"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { DGIPHeaderWithWatermarks } from "@/components/ui/dgip_header_watermarks"
 import ETDApplicationPhotoCard from "@/components/ui/etd_application_photo_card"
+import { DetailForm } from "@/components/forms/DetailForm"
 
 export function CitizenForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -388,6 +389,7 @@ export function CitizenForm() {
               </div>
             </CardHeader>
             <CardContent>
+
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 {/* Citizen ID Section */}
                 <div className="flex items-center gap-4">
@@ -402,6 +404,7 @@ export function CitizenForm() {
                       {...form.register("citizen_id")}
                     />
                   </div>
+                  
                   <Button
                     type="button"
                     onClick={handleGetData}
@@ -411,6 +414,25 @@ export function CitizenForm() {
                     {isFetchingData ? "Fetching..." : "Get Data"}
                   </Button>
                 </div>
+                 {/* DETAIL FORM */}
+                 <div className="mx-auto p-2 space-y-2">
+                 <div className="flex items-center gap-3">
+                 <DetailForm 
+                   data={form.watch()} 
+                   title="Nadra Details"
+                   passportPhoto={passportPhoto}
+                   onNext={() => {}} 
+                   onBack={() => {}} 
+                 />
+                 <DetailForm 
+                   data={form.watch()} 
+                   title="Passport Details"
+                   passportPhoto={passportPhoto}
+                   onNext={() => {}} 
+                   onBack={() => {}} 
+                 />
+                 </div>
+                 </div>
 
                 {/* Image Upload Section */}
                 <div className="bg-gray-50 p-4 rounded-lg">
@@ -462,6 +484,8 @@ export function CitizenForm() {
                     )}
                   </div>
                 </div>
+
+               
 
               {/* Personal Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
