@@ -4,9 +4,9 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-
 import { Textarea } from "@/components/ui/textarea"
-import { X, Upload } from "lucide-react"
+import { X, Upload, AlertCircle } from "lucide-react"
+import { sendForVerificationSchema } from "@/lib/validations"
 
 interface SendForVerificationModalProps {
   isOpen: boolean
@@ -28,6 +28,7 @@ export function SendForVerificationModal({
   const [selectedAgencies, setSelectedAgencies] = useState<string[]>([])
   const [verificationDocument, setVerificationDocument] = useState<File | null>(null)
   const [remarks, setRemarks] = useState<string>('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const availableAgencies = [
     { id: 'INTELLIGENCE_BUREAU', label: 'Intelligence Bureau' },
@@ -44,43 +45,86 @@ export function SendForVerificationModal({
     } else {
       setSelectedAgencies(selectedAgencies.filter(id => id !== agencyId))
     }
+    // Clear agency error when user makes a selection
+    if (errors.agencies) {
+      setErrors(prev => ({ ...prev, agencies: '' }))
+    }
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file && file.type === 'application/pdf') {
-      setVerificationDocument(file)
-    } else {
-      alert('Please select a PDF file')
-      e.target.value = ''
+    if (file) {
+      if (file.type === 'application/pdf') {
+        setVerificationDocument(file)
+        // Clear file error when user selects a valid file
+        if (errors.verification_document) {
+          setErrors(prev => ({ ...prev, verification_document: '' }))
+        }
+      } else {
+        alert('Please select a PDF file')
+        e.target.value = ''
+        setVerificationDocument(null)
+      }
+    }
+  }
+
+  const validateForm = () => {
+    const formData = {
+      agencies: selectedAgencies,
+      verification_document: verificationDocument,
+      remarks: remarks.trim() || undefined
+    }
+
+    try {
+      sendForVerificationSchema.parse(formData)
+      setErrors({})
+      return true
+    } catch (error: any) {
+      const newErrors: Record<string, string> = {}
+      if (error.errors) {
+        error.errors.forEach((err: any) => {
+          newErrors[err.path[0]] = err.message
+        })
+      }
+      setErrors(newErrors)
+      return false
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (selectedAgencies.length === 0) {
-      alert('Please select at least one agency for verification')
-      return
-    }
-
-    if (!verificationDocument) {
-      alert('Please upload a verification document')
+    if (!validateForm()) {
       return
     }
     
     const data = {
       agencies: selectedAgencies,
-      verification_document: verificationDocument,
+      verification_document: verificationDocument!,
       remarks: remarks.trim() || undefined
     }
     
-    await onSubmit(data)
-    
-    // Reset form
+    try {
+      await onSubmit(data)
+      
+      // Reset form on success
+      setSelectedAgencies([])
+      setVerificationDocument(null)
+      setRemarks('')
+      setErrors({})
+      onClose()
+    } catch (error) {
+      // Error handling is done by the parent component
+      console.error('Error submitting verification:', error)
+    }
+  }
+
+  const handleClose = () => {
+    // Reset form when closing
     setSelectedAgencies([])
     setVerificationDocument(null)
     setRemarks('')
+    setErrors({})
     onClose()
   }
 
@@ -95,7 +139,7 @@ export function SendForVerificationModal({
             <Button
               variant="ghost"
               size="sm"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={isLoading}
             >
               <X className="h-4 w-4" />
@@ -115,15 +159,22 @@ export function SendForVerificationModal({
                       checked={selectedAgencies.includes(agency.id)}
                       onChange={(e) => handleAgencyChange(agency.id, e.target.checked)}
                       className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      disabled={isLoading}
                     />
                     <Label htmlFor={agency.id}>{agency.label}</Label>
                   </div>
                 ))}
               </div>
+              {errors.agencies && (
+                <div className="flex items-center mt-1 text-sm text-red-600">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.agencies}
+                </div>
+              )}
             </div>
 
             <div>
-              <Label htmlFor="verification-document">Verification Document (PDF)</Label>
+              <Label htmlFor="verification-document">Verification Document (PDF) *</Label>
               <div className="mt-2">
                 <input
                   id="verification-document"
@@ -131,6 +182,7 @@ export function SendForVerificationModal({
                   accept=".pdf"
                   onChange={handleFileChange}
                   className="w-full p-2 border border-gray-300 rounded-md"
+                  disabled={isLoading}
                 />
                 {verificationDocument && (
                   <p className="text-sm text-green-600 mt-1">
@@ -138,6 +190,12 @@ export function SendForVerificationModal({
                   </p>
                 )}
               </div>
+              {errors.verification_document && (
+                <div className="flex items-center mt-1 text-sm text-red-600">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.verification_document}
+                </div>
+              )}
             </div>
 
             <div>
@@ -148,6 +206,7 @@ export function SendForVerificationModal({
                 onChange={(e) => setRemarks(e.target.value)}
                 placeholder="Enter any additional remarks..."
                 rows={3}
+                disabled={isLoading}
               />
             </div>
 
@@ -155,7 +214,7 @@ export function SendForVerificationModal({
               <Button
                 type="button"
                 variant="outline"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={isLoading}
                 className="flex-1"
               >

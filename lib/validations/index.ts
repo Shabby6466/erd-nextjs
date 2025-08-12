@@ -39,6 +39,17 @@ export const applicationSchema = z.object({
   updatedAt: z.string().optional()
 })
 
+export const sendForVerificationSchema = z.object({
+  agencies: z.array(z.string()).min(1, 'At least one agency must be selected'),
+  verification_document: z.instanceof(File, { message: 'Verification document is required' }),
+  remarks: z.string().optional()
+})
+
+export const submitVerificationSchema = z.object({
+  remarks: z.string().min(1, 'Remarks are required'),
+  attachment: z.instanceof(File).optional()
+})
+
 export const applicationFiltersSchema = z.object({
   status: z.enum(['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'COMPLETED']).optional(),
   search: z.string().optional(),

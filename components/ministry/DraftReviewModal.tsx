@@ -5,13 +5,23 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { CheckCircle, XCircle, AlertTriangle } from "lucide-react"
 
 interface DraftReviewModalProps {
   isOpen: boolean
   onClose: () => void
-  onApprove: (data: { black_list_check?: boolean }) => Promise<void>
-  onReject: (data: { rejection_reason: string, black_list_check?: boolean }) => Promise<void>
+  onApprove: (data: { 
+    black_list_check?: boolean;
+    etd_issue_date?: string;
+    etd_expiry_date?: string;
+  }) => Promise<void>
+  onReject: (data: { 
+    rejection_reason: string;
+    black_list_check?: boolean;
+    etd_issue_date?: string;
+    etd_expiry_date?: string;
+  }) => Promise<void>
   isLoading?: boolean
 }
 
@@ -25,10 +35,14 @@ export function DraftReviewModal({
   const [actionMode, setActionMode] = useState<'select' | 'approve' | 'reject'>('select')
   const [blacklistCheck, setBlacklistCheck] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
+  const [etdIssueDate, setEtdIssueDate] = useState('')
+  const [etdExpiryDate, setEtdExpiryDate] = useState('')
 
   const handleApprove = async () => {
     await onApprove({
-      black_list_check: blacklistCheck
+      black_list_check: blacklistCheck,
+      etd_issue_date: etdIssueDate || undefined,
+      etd_expiry_date: etdExpiryDate || undefined
     })
     resetForm()
   }
@@ -40,7 +54,9 @@ export function DraftReviewModal({
     }
     await onReject({
       rejection_reason: rejectionReason.trim(),
-      black_list_check: blacklistCheck
+      black_list_check: false,
+      etd_issue_date: undefined,
+      etd_expiry_date: undefined
     })
     resetForm()
   }
@@ -49,6 +65,8 @@ export function DraftReviewModal({
     setActionMode('select')
     setBlacklistCheck(false)
     setRejectionReason('')
+    setEtdIssueDate('')
+    setEtdExpiryDate('')
   }
 
   const handleClose = () => {
@@ -119,9 +137,37 @@ export function DraftReviewModal({
                   <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
                   <div className="text-green-800">
                     <div className="font-medium">Application will be approved</div>
-                    <div className="text-sm">Status will change to APPROVED</div>
+                    <div className="text-sm">ETD will be issued with the specified dates</div>
                   </div>
                 </div>
+              </div>
+
+              {/* ETD Issue Date */}
+              <div className="space-y-2">
+                <Label htmlFor="etd-issue-date">
+                  ETD Issue Date
+                </Label>
+                <Input
+                  id="etd-issue-date"
+                  type="date"
+                  value={etdIssueDate}
+                  onChange={(e) => setEtdIssueDate(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              {/* ETD Expiry Date */}
+              <div className="space-y-2">
+                <Label htmlFor="etd-expiry-date">
+                  ETD Expiry Date
+                </Label>
+                <Input
+                  id="etd-expiry-date"
+                  type="date"
+                  value={etdExpiryDate}
+                  onChange={(e) => setEtdExpiryDate(e.target.value)}
+                  className="w-full"
+                />
               </div>
 
               <div className="flex items-center space-x-2">
@@ -164,22 +210,9 @@ export function DraftReviewModal({
                   <XCircle className="h-5 w-5 text-red-600 mt-0.5" />
                   <div className="text-red-800">
                     <div className="font-medium">Application will be rejected</div>
-                    <div className="text-sm">Status will change to REJECTED</div>
+                    <div className="text-sm">ETD will not be issued</div>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  id="reject-blacklist"
-                  type="checkbox"
-                  checked={blacklistCheck}
-                  onChange={(e) => setBlacklistCheck(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <Label htmlFor="reject-blacklist" className="text-sm">
-                  Mark as blacklisted
-                </Label>
               </div>
 
               <div className="space-y-2">

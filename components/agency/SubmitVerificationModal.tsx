@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { X, Upload, FileText, Download } from "lucide-react"
+import { X, Upload, FileText, Download, AlertCircle } from "lucide-react"
 import { applicationAPI } from "@/lib/api/applications"
 import { showNotification } from "@/lib/utils/notifications"
+import { submitVerificationSchema } from "@/lib/validations"
 
 interface SubmitVerificationModalProps {
   isOpen: boolean
@@ -30,31 +31,56 @@ export function SubmitVerificationModal({
 }: SubmitVerificationModalProps) {
   const [remarks, setRemarks] = useState<string>('')
   const [attachment, setAttachment] = useState<File | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const validateForm = () => {
+    const formData = {
+      remarks: remarks.trim(),
+      attachment: attachment || undefined
+    }
+
+    try {
+      submitVerificationSchema.parse(formData)
+      setErrors({})
+      return true
+    } catch (error: any) {
+      const newErrors: Record<string, string> = {}
+      if (error.errors) {
+        error.errors.forEach((err: any) => {
+          newErrors[err.path[0]] = err.message
+        })
+      }
+      setErrors(newErrors)
+      return false
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!remarks.trim()) {
-      alert('Please enter verification remarks')
+    if (!validateForm()) {
       return
     }
     
-    const data: any = {
-      remarks: remarks.trim()
+    const data = {
+      remarks: remarks.trim(),
+      attachment: attachment || undefined
     }
     
-    if (attachment) {
-      data.attachment = attachment
-    }
-    
-    await onSubmit(data)
-    
-    // Reset form
-    setRemarks('')
-    setAttachment(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+    try {
+      await onSubmit(data)
+      
+      // Reset form on success
+      setRemarks('')
+      setAttachment(null)
+      setErrors({})
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    } catch (error) {
+      // Error handling is done by the parent component
+      console.error('Error submitting verification:', error)
     }
   }
 
@@ -86,6 +112,17 @@ export function SubmitVerificationModal({
     }
   }
 
+  const handleClose = () => {
+    // Reset form when closing
+    setRemarks('')
+    setAttachment(null)
+    setErrors({})
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+    onClose()
+  }
+
   if (!isOpen) return null
 
   return (
@@ -97,7 +134,7 @@ export function SubmitVerificationModal({
             <Button
               variant="ghost"
               size="sm"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={isLoading}
             >
               <X className="h-4 w-4" />
@@ -153,11 +190,23 @@ export function SubmitVerificationModal({
               <Textarea
                 id="remarks"
                 value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
+                onChange={(e) => {
+                  setRemarks(e.target.value)
+                  // Clear error when user starts typing
+                  if (errors.remarks) {
+                    setErrors(prev => ({ ...prev, remarks: '' }))
+                  }
+                }}
                 placeholder="Enter your verification remarks..."
                 rows={4}
-                required
+                disabled={isLoading}
               />
+              {errors.remarks && (
+                <div className="flex items-center mt-1 text-sm text-red-600">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.remarks}
+                </div>
+              )}
             </div>
 
             <div>
@@ -176,6 +225,7 @@ export function SubmitVerificationModal({
                   variant="outline"
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full"
+                  disabled={isLoading}
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   {attachment ? 'Change PDF' : 'Upload PDF'}
@@ -206,7 +256,7 @@ export function SubmitVerificationModal({
               <Button
                 type="button"
                 variant="outline"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={isLoading}
                 className="flex-1"
               >
