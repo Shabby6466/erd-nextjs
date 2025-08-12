@@ -144,7 +144,7 @@ export default function ApplicationViewPage() {
       if (application.status === "VERIFICATION_RECEIVED") {
         await applicationAPI.updateStatus(application.id, {
           status: "APPROVED",
-          ...(data.black_list_check && { black_list_check: true }),
+          black_list_check: data.black_list_check || false,
           ...(data.etd_issue_date && { etd_issue_date: data.etd_issue_date }),
           ...(data.etd_expiry_date && { etd_expiry_date: data.etd_expiry_date })
         })
@@ -206,13 +206,19 @@ export default function ApplicationViewPage() {
     }
   }
 
-  const handleDraftApprove = async (data: { black_list_check?: boolean }) => {
+  const handleDraftApprove = async (data: { 
+    black_list_check?: boolean;
+    etd_issue_date?: string;
+    etd_expiry_date?: string;
+  }) => {
     if (!application) return
     setIsActionLoading(true)
     try {
       await applicationAPI.updateStatus(application.id, {
         status: "APPROVED",
-        ...(data.black_list_check && { black_list_check: true })
+        black_list_check: data.black_list_check || false,
+        ...(data.etd_issue_date && { etd_issue_date: data.etd_issue_date }),
+        ...(data.etd_expiry_date && { etd_expiry_date: data.etd_expiry_date })
       })
       showNotification.success("Application approved")
       setShowDraftReviewModal(false)
@@ -225,14 +231,19 @@ export default function ApplicationViewPage() {
     }
   }
 
-  const handleDraftReject = async (data: { rejection_reason: string, black_list_check?: boolean }) => {
+  const handleDraftReject = async (data: { 
+    rejection_reason: string;
+    black_list_check?: boolean;
+    etd_issue_date?: string;
+    etd_expiry_date?: string;
+  }) => {
     if (!application) return
     setIsActionLoading(true)
     try {
       await applicationAPI.updateStatus(application.id, {
         status: "REJECTED",
         rejection_reason: data.rejection_reason,
-        ...(data.black_list_check && { black_list_check: true })
+        black_list_check: false
       })
       showNotification.success("Application rejected")
       setShowDraftReviewModal(false)
