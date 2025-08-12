@@ -135,10 +135,19 @@ export default function ApplicationViewPage() {
     if (!application) return
     setIsActionLoading(true)
     try {
-      await applicationAPI.ministryReview(application.id, {
-        approved: true,
-        black_list_check: data.black_list_check
-      })
+      // For applications with agency remarks (VERIFICATION_RECEIVED status), use updateStatus
+      if (application.status === "VERIFICATION_RECEIVED") {
+        await applicationAPI.updateStatus(application.id, {
+          status: "APPROVED",
+          ...(data.black_list_check && { black_list_check: true })
+        })
+      } else {
+        // For other statuses, use ministryReview
+        await applicationAPI.ministryReview(application.id, {
+          approved: true,
+          black_list_check: data.black_list_check
+        })
+      }
       showNotification.success("Application approved successfully")
       await refresh()
     } catch (error) {
@@ -154,11 +163,21 @@ export default function ApplicationViewPage() {
     if (!application) return
     setIsActionLoading(true)
     try {
-      await applicationAPI.ministryReview(application.id, {
-        approved: false,
-        black_list_check: data.black_list_check,
-        rejection_reason: data.rejection_reason
-      })
+      // For applications with agency remarks (VERIFICATION_RECEIVED status), use updateStatus
+      if (application.status === "VERIFICATION_RECEIVED") {
+        await applicationAPI.updateStatus(application.id, {
+          status: "REJECTED",
+          rejection_reason: data.rejection_reason,
+          ...(data.black_list_check && { black_list_check: true })
+        })
+      } else {
+        // For other statuses, use ministryReview
+        await applicationAPI.ministryReview(application.id, {
+          approved: false,
+          black_list_check: data.black_list_check,
+          rejection_reason: data.rejection_reason
+        })
+      }
       showNotification.success("Application rejected")
       await refresh()
     } catch (error) {
@@ -420,156 +439,230 @@ export default function ApplicationViewPage() {
             <CardTitle>Application #{application.id}</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Photograph Section */}
-            {application.image && (
-              <div className="mb-6">
-                <Section title="Photograph">
-                  <div className="flex justify-center">
-                    <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
-                      <img
-                        src={`data:image/jpeg;base64,${application.image}`}
-                        alt="Citizen Photograph"
-                        className="w-32 h-40 object-cover rounded"
-                      />
+            {/* Header Section with Photos and Data Sources */}
+            <div className="mb-8">
+              <div className="flex flex-col lg:flex-row gap-6">
+                {/* Photos Section - Dynamic width based on available images */}
+                {(application.image || application.nadra_api_data?.image_url || application.passport_api_data?.image_url) && (
+                  <div className={`${(application.nadra_api_data?.image_url || application.passport_api_data?.image_url) ? 'lg:w-1/2' : 'lg:w-1/3'}`}>
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full">
+                      <h3 className="text-lg font-semibold mb-4 text-gray-800">Citizen Photographs</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
+                        {/* Main Citizen Photo */}
+                        {application.image && (
+                          <div className="flex flex-col items-center">
+                            <div className="border-2 border-gray-300 rounded-lg p-3 bg-white shadow-sm">
+                              <img
+                                src={`data:image/jpeg;base64,${application.image}`}
+                                alt="Citizen Photograph"
+                                className="w-32 h-40 object-cover rounded"
+                              />
+                            </div>
+                            <span className="text-sm text-gray-600 mt-2">Uploaded Photo</span>
+                          </div>
+                        )}
+
+                        {/* NADRA Photo */}
+                        {application.nadra_api_data?.image_url && (
+                          <div className="flex flex-col items-center">
+                            <div className="border-2 border-blue-300 rounded-lg p-3 bg-white shadow-sm">
+                              <img
+                                src={application.nadra_api_data.image_url}
+                                alt="NADRA Photograph"
+                                className="w-32 h-40 object-cover rounded"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                              <div className="hidden w-32 h-40 bg-blue-50 border-2 border-blue-300 rounded flex items-center justify-center">
+                                <span className="text-blue-600 text-sm text-center">NADRA Photo<br/>Not Available</span>
+                              </div>
+                            </div>
+                            <span className="text-sm text-blue-600 mt-2">NADRA Photo</span>
+                          </div>
+                        )}
+
+                        {/* Passport Photo */}
+                        {application.passport_api_data?.image_url && (
+                          <div className="flex flex-col items-center">
+                            <div className="border-2 border-green-300 rounded-lg p-3 bg-white shadow-sm">
+                              <img
+                                src={application.passport_api_data.image_url}
+                                alt="Passport Photograph"
+                                className="w-32 h-40 object-cover rounded"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                              <div className="hidden w-32 h-40 bg-green-50 border-2 border-green-300 rounded flex items-center justify-center">
+                                <span className="text-green-600 text-sm text-center">Passport Photo<br/>Not Available</span>
+                              </div>
+                            </div>
+                            <span className="text-sm text-green-600 mt-2">Passport Photo</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </Section>
-              </div>
-            )}
+                )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <Section title="Personal Information">
-                  <GridItem label="First Name" value={application.firstName} />
-                  <GridItem label="Last Name" value={application.lastName} />
-                  <GridItem label="Father's Name" value={application.fatherName} />
-                  <GridItem label="Mother's Name" value={application.motherName} />
-                  <GridItem label="Citizen ID" value={application.citizenId} mono />
-                  <GridItem label="Date of Birth" value={formatDate(application.dateOfBirth)} />
-                  <GridItem label="Birth Country" value={application.birthCountry || '-'} />
-                  <GridItem label="Birth City" value={application.birthCity || '-'} />
-                  <GridItem label="Profession" value={application.profession} />
-                </Section>
-              </div>
-              <div className="space-y-4">
-                <Section title="Physical & Address">
-                  <GridItem label="Height" value={String(application.height)} />
-                  <GridItem label="Eye Color" value={application.colorOfEyes} />
-                  <GridItem label="Hair Color" value={application.colorOfHair} />
-                  <GridItem label="City" value={application.pakistanCity} />
-                  <GridItem label="Address" value={application.pakistanAddress} />
-                </Section>
-              </div>
-            </div>
+                {/* Data Sources and Quick Info - Dynamic width */}
+                <div className={`${(application.nadra_api_data?.image_url || application.passport_api_data?.image_url) ? 'lg:w-1/2' : 'lg:w-2/3'}`}>
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-full flex flex-col">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-800">
+                      Data Sources & Verification
+                    </h3>
 
-            <div className="mt-6">
-              <Section title="Travel Information">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <GridItem label="Departure Date" value={formatDate(application.departureDate)} />
-                  <GridItem label="Transport Mode" value={application.transportMode} />
-                </div>
-              </Section>
-            </div>
+                    {/* Data Source Indicators */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      {/* NADRA */}
+                      <div className="flex items-center justify-between rounded-xl border p-4 bg-blue-50/70 border-blue-200">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-3.5 h-3.5 rounded-full bg-blue-500 shrink-0" />
+                          <span className="font-medium text-blue-900 truncate">NADRA Data</span>
+                        </div>
+                        <Badge
+                          variant={application.nadra_api_data ? "default" : "secondary"}
+                          className="shrink-0 px-3 py-1 text-xs rounded-full"
+                        >
+                          {application.nadra_api_data ? "Available" : "Not Available"}
+                        </Badge>
+                      </div>
 
-            {/* Blacklist Check Flag - Highlighted Section */}
-            {application.blacklistCheckPassed !== undefined && (
-              <div className="mt-6">
-                <div className={`p-4 rounded-lg border-2 ${application.blacklistCheckPassed
-                    ? 'bg-green-50 border-green-300'
-                    : 'bg-red-50 border-red-300'
-                  }`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${application.blacklistCheckPassed
-                        ? 'bg-green-100 text-green-600'
-                        : 'bg-red-100 text-red-600'
-                      }`}>
-                      {application.blacklistCheckPassed ? (
-                        <CheckCircle className="h-5 w-5" />
-                      ) : (
-                        <XCircle className="h-5 w-5" />
-                      )}
+                      {/* Passport */}
+                      <div className="flex items-center justify-between rounded-xl border p-4 bg-green-50/70 border-green-200">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-3.5 h-3.5 rounded-full bg-green-500 shrink-0" />
+                          <span className="font-medium text-green-900 truncate">Passport Data</span>
+                        </div>
+                        <Badge
+                          variant={application.passport_api_data ? "default" : "secondary"}
+                          className="shrink-0 px-3 py-1 text-xs rounded-full"
+                        >
+                          {application.passport_api_data ? "Available" : "Not Available"}
+                        </Badge>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className={`font-semibold ${application.blacklistCheckPassed
-                          ? 'text-green-800'
-                          : 'text-red-800'
-                        }`}>
-                        Blacklist Check Status
-                      </h4>
-                      <p className={`text-sm ${application.blacklistCheckPassed
-                          ? 'text-green-700'
-                          : 'text-red-700'
-                        }`}>
-                        {application.blacklistCheckPassed
-                          ? 'Passed - No blacklist issues found'
-                          : 'Failed - Blacklist issues detected (Application still approved)'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {/* Rejection Reason - Highlighted Section */}
-            {application.status === "REJECTED" && application.rejectionReason && (
-              <div className="mt-6">
-                <div className="p-4 rounded-lg border-2 bg-red-50 border-red-300">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-full bg-red-100 text-red-600 mt-1">
-                      <XCircle className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-red-800 mb-2">
-                        Application Rejected
-                      </h4>
-                      <div className="bg-white p-3 rounded border border-red-200">
-                        <p className="text-sm text-gray-600 mb-1">Rejection Reason:</p>
-                        <p className="text-red-800 font-medium">
-                          {application.rejectionReason}
-                        </p>
+                    {/* Quick Info */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-fr flex-1">
+                      <div className="rounded-xl border bg-gray-50 p-4 flex flex-col justify-between">
+                        <div className="text-xl font-bold text-gray-900 leading-tight">
+                          {application.firstName || "-"}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-2">First Name</div>
+                      </div>
+
+                      <div className="rounded-xl border bg-gray-50 p-4 flex flex-col justify-between">
+                        <div className="text-xl font-bold text-gray-900 leading-tight">
+                          {application.lastName || "-"}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-2">Last Name</div>
+                      </div>
+
+                      <div className="rounded-xl border bg-gray-50 p-4 flex flex-col justify-between">
+                        <div className="font-mono text-base font-semibold text-gray-900 leading-tight break-all">
+                          {application.citizenId || "-"}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-2">Citizen ID</div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
-            <div className="mt-6">
-              <Section title="Request & Flags">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <GridItem label="Investor" value={application.investor || '-'} />
-                  <GridItem label="Requested By" value={application.requestedBy || '-'} />
-                  <GridItem label="Reason for Deport" value={application.reason_for_deport} />
-                  <GridItem label="Amount" value={application.securityDeposit || '-'} />
-                  <GridItem label="FIA Blacklist" value={application.isFiaBlacklist ? "Yes" : "No"} />
-                </div>
+            {/* Personal & Address */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 auto-rows-fr items-stretch">
+              <Section title="Personal Information" className="h-full">
+                <GridItem label="First Name" value={application.firstName} />
+                <GridItem label="Last Name" value={application.lastName} />
+                <GridItem label="Father's Name" value={application.fatherName} />
+                <GridItem label="Mother's Name" value={application.motherName} />
+                <GridItem label="Citizen ID" value={application.citizenId} mono />
+                <GridItem label="Date of Birth" value={formatDate(application.dateOfBirth)} />
+                <GridItem label="Birth Country" value={application.birthCountry || '-'} />
+                <GridItem label="Birth City" value={application.birthCity || '-'} />
+                <GridItem label="Profession" value={application.profession} />
+              </Section>
+
+              <Section title="Physical & Address Information" className="h-full">
+                <GridItem label="Height" value={application.height || '-'} />
+                <GridItem label="Eye Color" value={application.colorOfEyes || '-'} />
+                <GridItem label="Hair Color" value={application.colorOfHair || '-'} />
+                <GridItem label="City" value={application.pakistanCity} />
+                <GridItem label="Address" value={application.pakistanAddress} />
               </Section>
             </div>
 
-            <div className="mt-6">
-              <Section title="Status & Audit">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <GridItem label="Status" value={formatStatus(application.status)} />
-                  <GridItem label="Created At" value={formatDate(application.createdAt)} />
-                  <GridItem label="Last Updated" value={formatDate(application.updatedAt)} />
-                  {application.createdBy?.fullName && (
-                    <GridItem
-                      label="Created By"
-                      value={`${application.createdBy.fullName}${application.createdBy.state ? ` (${application.createdBy.state})` : ` (${application.createdBy.role})`}`}
+                        {/* Travel & Request */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8 auto-rows-fr items-stretch">
+              <Section title="Travel Information" className="h-full">
+                <GridItem label="Departure Date" value={formatDate(application.departureDate)} />
+                <GridItem label="Transport Mode" value={application.transportMode || '-'} />
+              </Section>
+
+              <Section title="Request & Financial Information" className="h-full">
+                <GridItem label="Investor" value={application.investor || '-'} />
+                <GridItem label="Requested By" value={application.requestedBy || '-'} />
+                <GridItem label="Reason for Deport" value={application.reason_for_deport || '-'} />
+                <GridItem label="Amount" value={application.securityDeposit || '-'} />
+              </Section>
+            </div>
+
+                        {/* Status & Security */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8 auto-rows-fr items-stretch">
+              <Section title="Application Status & Audit" className="h-full">
+                <GridItem label="Status" value={formatStatus(application.status)} />
+                <GridItem label="Created At" value={formatDate(application.createdAt)} />
+                <GridItem label="Last Updated" value={formatDate(application.updatedAt)} />
+                {application.createdBy?.fullName && (
+                  <GridItem
+                    label="Created By"
+                    value={`${application.createdBy.fullName}${application.createdBy.state ? ` (${application.createdBy.state})` : ` (${application.createdBy.role})`}`}
+                  />
+                )}
+                {application.reviewedByUser?.fullName && (
+                  <GridItem label="Reviewed By" value={`${application.reviewedByUser.fullName} (${application.reviewedByUser.role})`} />
+                )}
+              </Section>
+
+              {application.reviewedBy && (
+                <Section title="Security & Verification" className="h-full">
+                  <GridItem 
+                    label="FIA Blacklist Status" 
+                    value={
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${application.isFiaBlacklist ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                        <span>{application.isFiaBlacklist ? "Blacklisted" : "Clear"}</span>
+                      </div>
+                    }
+                  />
+                  {application.blacklistCheckPassed !== undefined && (
+                    <GridItem 
+                      label="Blacklist Check" 
+                      value={
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${application.blacklistCheckPassed ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                          <span>{application.blacklistCheckPassed ? "Passed" : "Failed (Still Approved)"}</span>
+                        </div>
+                      }
                     />
                   )}
-                  {application.reviewedByUser?.fullName && (
-                    <GridItem label="Reviewed By" value={`${application.reviewedByUser.fullName} (${application.reviewedByUser.role})`} />
-                  )}
-                </div>
-              </Section>
+                </Section>
+              )}
             </div>
 
             {/* ETD Information - Only show for approved applications */}
             {application.status === "APPROVED" && (application.etdIssueDate || application.etdExpiryDate || application.blacklistCheckPassed !== undefined) && (
-              <div className="mt-6">
-                <Section title="Emergency Travel Document (ETD) Information">
+              <div className="mt-8">
+                <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200 p-6">
+                  <h3 className="text-xl font-semibold mb-4 text-green-800 flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5" />
+                    Emergency Travel Document (ETD) Information
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {application.etdIssueDate && (
                       <GridItem label="ETD Issue Date" value={formatDate(application.etdIssueDate)} />
@@ -580,46 +673,70 @@ export default function ApplicationViewPage() {
                     {application.blacklistCheckPassed !== undefined && (
                       <GridItem
                         label="Blacklist Check Status"
-                        value={application.blacklistCheckPassed ? "Passed" : "Failed (Still Approved)"}
+                        value={
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${application.blacklistCheckPassed ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                            <span>{application.blacklistCheckPassed ? "Passed" : "Failed (Still Approved)"}</span>
+                          </div>
+                        }
                       />
                     )}
                     {application.reviewedAt && (
                       <GridItem label="Reviewed At" value={formatDateTime(application.reviewedAt)} />
                     )}
                   </div>
-                </Section>
+                </div>
               </div>
             )}
 
             {/* Agency Verification Remarks - Only visible to Ministry and Admin */}
             {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_RECEIVED" && application.agencyRemarks && application.agencyRemarks.length > 0 && (
-              <div className="mt-6">
-                <Section title="Agency Verification Results">
-                  <div className="space-y-4">
+              <div className="mt-8">
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200 p-6">
+                  <h3 className="text-xl font-semibold mb-6 text-blue-800 flex items-center gap-2">
+                    <Eye className="h-5 w-5" />
+                    Agency Verification Results
+                  </h3>
+                  <div className="space-y-6">
                     {application.agencyRemarks.map((remark: any, index: number) => (
-                      <div key={index} className="border rounded-lg p-4 bg-gray-50">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <GridItem label="Agency" value={remark.agency || 'Unknown'} />
-                          <GridItem label="Submitted At" value={remark.submittedAt ? formatDateTime(remark.submittedAt) : 'N/A'} />
+                      <div key={index} className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <h4 className="font-semibold text-gray-800">{remark.agency || 'Unknown Agency'}</h4>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {remark.submittedAt ? formatDateTime(remark.submittedAt) : 'N/A'}
+                          </Badge>
                         </div>
-                        <div className="mt-3">
-                          <GridItem label="Remarks" value={remark.remarks || 'No remarks provided'} />
+
+                        <div className="mb-4">
+                          <div className="text-sm text-gray-600 mb-2">Verification Remarks:</div>
+                          <div className="bg-gray-50 rounded-lg p-3 text-gray-800">
+                            {remark.remarks || 'No remarks provided'}
+                          </div>
                         </div>
+
                         {remark.attachmentUrl && (
-                          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-blue-600" />
-                                <span className="text-sm font-medium text-blue-800">PDF Attachment</span>
+                              <div className="flex items-center gap-3">
+                                <FileText className="h-5 w-5 text-blue-600" />
+                                <div>
+                                  <div className="font-medium text-blue-900">Verification Document</div>
+                                  <div className="text-sm text-blue-700">PDF attachment from {remark.agency}</div>
+                                </div>
                               </div>
                               <div className="flex gap-2">
                                 <PDFLink
                                   url=""
                                   fileName={`verification-${remark.agency}-${remark.submittedAt}.pdf`}
-                                  className="text-blue-600 hover:text-blue-800"
+                                  className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
                                   applicationId={params.id as string}
                                   agency={remark.agency}
                                 >
+                                  <Eye className="h-4 w-4" />
+                                  View
                                 </PDFLink>
                                 <span className="text-gray-400">|</span>
                                 <button
@@ -657,7 +774,7 @@ export default function ApplicationViewPage() {
                       </div>
                     ))}
                   </div>
-                </Section>
+                </div>
               </div>
             )}
           </CardContent>
@@ -819,7 +936,12 @@ export default function ApplicationViewPage() {
                 {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_RECEIVED" && (
                   <>
                     <Button
-                      onClick={() => setShowMinistryReviewModal(true)}
+                      onClick={() => {
+                        console.log('Current application status:', application.status)
+                        console.log('Application ID:', application.id)
+                        console.log('Agency remarks:', application.agencyRemarks)
+                        setShowMinistryReviewModal(true)
+                      }}
                       disabled={isActionLoading}
                       className="bg-blue-600 hover:bg-blue-700"
                     >
@@ -894,20 +1016,33 @@ export default function ApplicationViewPage() {
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+// allow passing className and control columns
+function Section({
+  title,
+  children,
+  className = "",
+  cols = 2, // 1 or 2
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+  cols?: 1 | 2;
+}) {
   return (
-    <div>
-      <h3 className="text-lg font-semibold mb-3 border-b border-gray-200 pb-2">{title}</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col h-full ${className}`}>
+      <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b border-gray-200 pb-3">{title}</h3>
+      <div className={`grid grid-cols-1 ${cols === 2 ? "md:grid-cols-2" : ""} gap-4 flex-1`}>
+        {children}
+      </div>
     </div>
   )
 }
 
-function GridItem({ label, value, mono }: { label: string; value?: string; mono?: boolean }) {
+function GridItem({ label, value, mono }: { label: string; value?: string | React.ReactNode; mono?: boolean }) {
   return (
-    <div>
-      <div className="text-sm text-gray-600">{label}</div>
-      <div className={`mt-1 ${mono ? "font-mono" : ""}`}>{value || "-"}</div>
+    <div className="p-3 bg-gray-50 rounded-lg">
+      <div className="text-sm font-medium text-gray-700 mb-1">{label}</div>
+      <div className={`text-gray-900 ${mono ? "font-mono" : "font-medium"}`}>{value || "-"}</div>
     </div>
   )
 }

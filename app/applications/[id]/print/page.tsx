@@ -110,10 +110,7 @@ export default function PrintApplicationPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="font-medium text-gray-700">Nationality:</label>
-                <p className="text-gray-900">{application.nationality}</p>
-              </div>
+              
               <div>
                 <label className="font-medium text-gray-700">Profession:</label>
                 <p className="text-gray-900">{application.profession}</p>
@@ -126,7 +123,7 @@ export default function PrintApplicationPage() {
           {/* Photograph Section */}
           {application.image && (
             <div className="mb-6">
-              <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 pb-2">
+              <h2 className="text-xl font-semibold mb-1 border-b border-gray-200 pb-2">
                 Photograph
               </h2>
               <div className="flex justify-center mb-4">

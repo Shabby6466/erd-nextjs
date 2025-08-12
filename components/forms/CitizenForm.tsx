@@ -17,13 +17,17 @@ import { nadraAPI } from "@/lib/api/nadra"
 import { passportAPI, type PassportApiResponse } from "@/lib/api/passport"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { DGIPHeaderWithWatermarks } from "@/components/ui/dgip_header_watermarks"
+import ETDApplicationPhotoCard from "@/components/ui/etd_application_photo_card"
+import { DetailForm } from "@/components/forms/DetailForm"
 
 export function CitizenForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isFetchingData, setIsFetchingData] = useState(false)
   const [passportPhoto, setPassportPhoto] = useState<string | null>(null)
   const [imageBase64, setImageBase64] = useState<string>("")
-  // Removed uploadedImage state as it's not being used
+  const [showFullForm, setShowFullForm] = useState(false)
+  const [initialCitizenId, setInitialCitizenId] = useState("")
+  const [initialImageBase64, setInitialImageBase64] = useState<string>("")
   const router = useRouter()
   const { user } = useAuthStore()
 
@@ -77,15 +81,14 @@ export function CitizenForm() {
   const form = useForm<CitizenFormData>({
     resolver: zodResolver(citizenSchema),
     defaultValues: {
-      citizen_id: "",
+      citizen_id: initialCitizenId,
       first_name: "",
       last_name: "",
-      image: "",
+      image: initialImageBase64,
       father_name: "",
       mother_name: "",
       gender: "",
       date_of_birth: "",
-      // nationality: "",
       profession: "",
       pakistan_city: "",
       pakistan_address: "",
@@ -102,7 +105,10 @@ export function CitizenForm() {
       securityDeposit: "",
       amount: 0,
       currency: "",
-      // is_fia_blacklist: false,
+      is_fia_blacklist: false,
+      status: "DRAFT",
+      passport_api_data: undefined,
+      nadra_api_data: undefined,
     },
   })
 
@@ -151,6 +157,106 @@ export function CitizenForm() {
     }
   }
 
+  // Handler for immediate navigation from photo card
+  const handlePhotoCardNavigate = (citizenId: string, imageBase64: string | null) => {
+    console.log("handlePhotoCardNavigate called with:", { citizenId, hasImage: !!imageBase64 })
+    
+    if (!/^\d{13}$/.test(citizenId)) {
+      showNotification.error("Please enter a valid 13-digit citizen ID")
+      return
+    }
+
+    // Set initial values from photo card
+    setInitialCitizenId(citizenId)
+    setInitialImageBase64(imageBase64 || "")
+    
+    // Set form values
+    form.setValue("citizen_id", citizenId)
+    form.setValue("image", imageBase64 || "")
+    
+    // Set photo for display if available
+    if (imageBase64) {
+      setPassportPhoto(`data:image/jpeg;base64,${imageBase64}`)
+      setImageBase64(imageBase64)
+    }
+
+    // Immediately show the full form
+    setShowFullForm(true)
+    
+    // Start fetching data in the background
+    handlePhotoCardGetData(citizenId, imageBase64)
+  }
+
+  // Handler for photo card "Get Data" button (background API calls)
+  const handlePhotoCardGetData = async (citizenId: string, imageBase64: string | null) => {
+    console.log("handlePhotoCardGetData called with:", { citizenId, hasImage: !!imageBase64 })
+    
+    if (!/^\d{13}$/.test(citizenId)) {
+      showNotification.error("Please enter a valid 13-digit citizen ID")
+      return
+    }
+
+    // Note: Form values are already set by handlePhotoCardNavigate
+
+    setIsFetchingData(true)
+    try {
+      // Try passport API first
+      const passportData = await passportAPI.getCitizenData(citizenId)
+      const mappedData = mapPassportDataToForm(passportData)
+
+      // Update form with mapped data (skip empty values)
+      Object.entries(mappedData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          form.setValue(key as keyof CitizenFormData, value)
+        }
+      })
+
+      // Set passport photo if available (override uploaded photo)
+      if (passportData.photograph) {
+        setPassportPhoto(`data:image/jpeg;base64,${passportData.photograph}`)
+        setImageBase64(passportData.photograph)
+        form.setValue("image", passportData.photograph)
+      }
+
+      // Store passport API data for submission
+      form.setValue("passport_api_data", passportData)
+
+      showNotification.success("Data fetched successfully from Passport API")
+    } catch (passportError) {
+      console.warn('Passport API failed, trying NADRA API:', passportError)
+      try {
+        // Fallback to NADRA API
+        const data = await nadraAPI.getCitizenData(citizenId)
+        form.reset(data)
+        // Keep the uploaded photo if no passport photo available
+        if (imageBase64) {
+          form.setValue("image", imageBase64)
+          setPassportPhoto(`data:image/jpeg;base64,${imageBase64}`)
+          setImageBase64(imageBase64)
+        } else {
+          setPassportPhoto(null)
+          setImageBase64("")
+        }
+
+        // Store NADRA API data for submission
+        form.setValue("nadra_api_data", data)
+
+        showNotification.success("Data fetched successfully from NADRA API (no photo available - please upload manually)")
+      } catch (nadraError: unknown) {
+        const errorMessage = nadraError instanceof Error 
+          ? nadraError.message 
+          : "Failed to fetch data from both Passport and NADRA APIs"
+        showNotification.error(errorMessage)
+        // Still show the form even if API fails - user can fill manually
+        showNotification.info("You can now fill in the remaining information manually")
+      }
+    } finally {
+      setIsFetchingData(false)
+      // Don't show full form here - it's already shown by navigation
+    }
+  }
+
+  // Handler for form "Get Data" button (for re-fetching data)
   const handleGetData = async () => {
     const citizenId = form.getValues("citizen_id")
     if (!/^\d{13}$/.test(citizenId)) {
@@ -177,6 +283,9 @@ export function CitizenForm() {
         setImageBase64(passportData.photograph)
       }
 
+      // Store passport API data for submission
+      form.setValue("passport_api_data", passportData)
+
       showNotification.success("Data fetched successfully from Passport API")
     } catch (passportError) {
       console.warn('Passport API failed, trying NADRA API:', passportError)
@@ -186,6 +295,10 @@ export function CitizenForm() {
         form.reset(data)
         setPassportPhoto(null) // Clear any previous photo
         setImageBase64("") // Clear base64 image
+
+        // Store NADRA API data for submission
+        form.setValue("nadra_api_data", data)
+
         showNotification.success("Data fetched successfully from NADRA API (no photo available - please upload manually)")
       } catch (nadraError: unknown) {
         const errorMessage = nadraError instanceof Error 
@@ -199,7 +312,9 @@ export function CitizenForm() {
   }
 
   const onSubmit = async (data: CitizenFormData) => {
+    console.log('Form submission started with data:', data)
     setIsLoading(true)
+    
     try {
       // Validate that image is provided
       if (!data.image || data.image.trim() === '') {
@@ -208,21 +323,94 @@ export function CitizenForm() {
         return
       }
 
-      // Ensure status is always set to DRAFT for new applications and handle optional fields
+      console.log('Image validation passed')
+
+      // Prepare API data objects
+      const now = new Date().toISOString()
+      
+      // Create passport API data if we have passport information (optional)
+      const passportApiData = data.passport_api_data ? {
+        createdAt: now,
+        updatedAt: now,
+        citizen_id: data.citizen_id,
+        image_url: data.image ? `data:image/jpeg;base64,${data.image}` : "",
+        first_name: data.first_name,
+        last_name: data.last_name,
+        father_name: data.father_name,
+        pakistan_city: data.pakistan_city,
+        gender: data.gender,
+        date_of_birth: data.date_of_birth,
+        birth_country: data.birth_country,
+        birth_city: data.birth_city,
+        profession: data.profession,
+        pakistan_address: data.pakistan_address,
+        response_status: "SUCCESS",
+        api_response_date: now,
+        raw_response: data.passport_api_data
+      } : undefined
+
+      // Create NADRA API data if we have NADRA information (optional)
+      const nadraApiData = data.nadra_api_data ? {
+        createdAt: now,
+        updatedAt: now,
+        citizen_id: data.citizen_id,
+        image_url: data.image ? `data:image/jpeg;base64,${data.image}` : "",
+        first_name: data.first_name,
+        last_name: data.last_name,
+        father_name: data.father_name,
+        mother_name: data.mother_name,
+        pakistan_city: data.pakistan_city,
+        date_of_birth: data.date_of_birth,
+        birth_country: data.birth_country,
+        birth_city: data.birth_city,
+        profession: data.profession,
+        pakistan_address: data.pakistan_address,
+        response_status: "SUCCESS",
+        api_response_date: now,
+        raw_response: data.nadra_api_data
+      } : undefined
+
+      console.log('Passport API data:', passportApiData ? 'present' : 'not present')
+      console.log('NADRA API data:', nadraApiData ? 'present' : 'not present')
+
+      // Format the application data according to the new API structure
       const applicationData = {
-        ...data,
-        status: "DRAFT",
+        first_name: data.first_name,
+        last_name: data.last_name,
+        image: data.image,
+        father_name: data.father_name,
+        mother_name: data.mother_name,
+        citizen_id: data.citizen_id,
+        gender: data.gender,
+        pakistan_city: data.pakistan_city,
+        date_of_birth: data.date_of_birth,
+        birth_country: data.birth_country,
+        birth_city: data.birth_city,
+        profession: data.profession,
+        pakistan_address: data.pakistan_address,
         height: data.height || "",
-        color_of_eyes: data.color_of_eyes || "",
         color_of_hair: data.color_of_hair || "",
+        color_of_eyes: data.color_of_eyes || "",
+        departure_date: data.departure_date,
         transport_mode: data.transport_mode || "",
-        reason_for_deport: data.reason_for_deport || "",
-        currency: data.currency || "",
-        securityDeposit: data.securityDeposit || "",
         investor: data.investor || "",
-        amount: data.amount || 0
+        requested_by: data.requested_by,
+        reason_for_deport: data.reason_for_deport || "",
+        amount: data.amount || 0,
+        currency: data.currency || "",
+        is_fia_blacklist: data.is_fia_blacklist || false,
+        status: "DRAFT",
+        passport_photo_url: data.image ? `data:image/jpeg;base64,${data.image}` : undefined,
+        other_documents_url: undefined, // Will be set when documents are uploaded
+        passport_api_data: passportApiData,
+        nadra_api_data: nadraApiData
       }
+
+      console.log('Sending application data to API:', applicationData)
+      console.log('API endpoint: /applications')
+
       const application = await applicationAPI.create(applicationData)
+      console.log('API response received:', application)
       showNotification.success("Application created successfully")
 
       // Navigate based on user role
@@ -236,7 +424,12 @@ export function CitizenForm() {
         console.log('Redirecting to application details page')
         router.push(`/applications/${application.id}`)
       }
-    } catch {
+    } catch (error) {
+      console.error('Error creating application:', error)
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
       showNotification.error("Failed to create application")
     } finally {
       setIsLoading(false)
@@ -247,90 +440,151 @@ export function CitizenForm() {
     <div className="min-h-screen p-4" style={{ backgroundColor: '#E5EDFF' }}>
       <DGIPHeaderWithWatermarks />
       <div className="relative z-20 max-w-4xl mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">
-              Emergency Travel Document Application
-            </CardTitle>
-            <CardDescription>
-              Enter citizen information to create a new application
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Citizen ID Section */}
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="citizen_id">Citizen ID</Label>
-                  <Input
-                    id="citizen_id"
-                    placeholder="Enter 13-digit citizen ID"
-                    maxLength={13}
-                    pattern="\d{13}"
-                    inputMode="numeric"
-                    {...form.register("citizen_id")}
-                  />
+        {!showFullForm ? (
+          // Show photo card first
+          <ETDApplicationPhotoCard
+            title="Emergency Travel Document Application"
+            onNavigate={(citizenId, imageBase64) => {
+              console.log("Get Data pressed with citizen ID:", citizenId)
+              console.log("Current imageBase64:", imageBase64)
+              handlePhotoCardNavigate(citizenId, imageBase64)
+            }}
+            onImageChange={(base64) => {
+              console.log("Image changed:", base64 ? "has image" : "no image")
+              // Handle image change from photo card
+              if (base64) {
+                setImageBase64(base64)
+                form.setValue("image", base64)
+              } else {
+                setImageBase64("")
+                form.setValue("image", "")
+              }
+            }}
+          />
+        ) : (
+          // Show full form after "Get Data" is pressed
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-bold">
+                    Emergency Travel Document Application
+                  </CardTitle>
+                  <CardDescription>
+                    Enter citizen information to create a new application
+                  </CardDescription>
                 </div>
-                <Button
-                  type="button"
-                  onClick={handleGetData}
-                  disabled={isFetchingData || !/^\d{13}$/.test(form.watch("citizen_id"))}
-                  className="mt-6"
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowFullForm(false)}
+                  className="text-sm"
                 >
-                  {isFetchingData ? "Fetching..." : "Get Data"}
+                  ← Back to Photo
                 </Button>
               </div>
+            </CardHeader>
+            <CardContent>
 
-              {/* Image Upload Section */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label className="text-lg font-semibold mb-4 block">Photograph *</Label>
-
-                {/* Image Display */}
-                {passportPhoto && (
-                  <div className="flex justify-center mb-4">
-                    <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
-                      <Image
-                        src={passportPhoto}
-                        alt="Citizen Photo"
-                        width={128}
-                        height={160}
-                        className="object-cover rounded"
-                      />
-                    </div>
+              <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+                console.error('Form validation errors:', errors)
+                showNotification.error("Please fix the form errors before submitting")
+              })} className="space-y-6">
+                {/* Citizen ID Section */}
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="citizen_id">Citizen ID</Label>
+                    <Input
+                      id="citizen_id"
+                      placeholder="Enter 13-digit citizen ID"
+                      maxLength={13}
+                      pattern="\d{13}"
+                      inputMode="numeric"
+                      {...form.register("citizen_id")}
+                    />
                   </div>
-                )}
-
-                {/* Upload Controls */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="block w-full text-sm text-gray-500
-                          file:mr-4 file:py-2 file:px-4
-                          file:rounded-full file:border-0
-                          file:text-sm file:font-semibold
-                          file:bg-blue-50 file:text-blue-700
-                          hover:file:bg-blue-100"
-                      />
-                    </div>
-                  </div>
-
-                  {!passportPhoto && !imageBase64 && (
-                    <p className="text-sm text-gray-600">
-                      No image available from passport API. Please upload a photo manually.
-                    </p>
-                  )}
-
-                  {imageBase64 && (
-                    <p className="text-sm text-green-600">
-                      ✓ Image ready for submission (Base64 format)
-                    </p>
-                  )}
+                  
+                  <Button
+                    type="button"
+                    onClick={handleGetData}
+                    disabled={isFetchingData || !/^\d{13}$/.test(form.watch("citizen_id"))}
+                    className="mt-6"
+                  >
+                    {isFetchingData ? "Fetching..." : "Get Data"}
+                  </Button>
                 </div>
-              </div>
+                 {/* DETAIL FORM */}
+                 <div className="mx-auto p-2 space-y-2">
+                 <div className="flex items-center gap-3">
+                 <DetailForm 
+                   data={form.watch()} 
+                   title="Nadra Details"
+                   passportPhoto={passportPhoto}
+                   onNext={() => {}} 
+                   onBack={() => {}} 
+                 />
+                 <DetailForm 
+                   data={form.watch()} 
+                   title="Passport Details"
+                   passportPhoto={passportPhoto}
+                   onNext={() => {}} 
+                   onBack={() => {}} 
+                 />
+                 </div>
+                 </div>
+
+                {/* Image Upload Section */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <Label className="text-lg font-semibold mb-4 block">Photograph *</Label>
+
+                  {/* Image Display */}
+                  {passportPhoto && (
+                    <div className="flex justify-center mb-4">
+                      <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
+                        <Image
+                          src={passportPhoto}
+                          alt="Citizen Photo"
+                          width={128}
+                          height={160}
+                          className="object-cover rounded"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload Controls */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-full file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-blue-50 file:text-blue-700
+                            hover:file:bg-blue-100"
+                        />
+                      </div>
+                    </div>
+
+                    {!passportPhoto && !imageBase64 && (
+                      <p className="text-sm text-gray-600">
+                        No image available from passport API. Please upload a photo manually.
+                      </p>
+                    )}
+
+                    {imageBase64 && (
+                      <p className="text-sm text-green-600">
+                        ✓ Image ready for submission (Base64 format)
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+               
 
               {/* Personal Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -416,7 +670,7 @@ export function CitizenForm() {
                 </div>
                 <div>
                   <Label htmlFor="investor">Investor</Label>
-                  <Input id="transport_mode" placeholder="Gov of Pakistan" {...form.register("investor")} />
+                  <Input id="investor" placeholder="Gov of Pakistan" {...form.register("investor")} />
                 </div>
                 <div>
                   <Label htmlFor="requested_by">Requested By</Label>
@@ -450,6 +704,16 @@ export function CitizenForm() {
                 <Button type="button" variant="outline" onClick={() => router.back()}>
                   Cancel
                 </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    console.log('Current form values:', form.getValues())
+                    console.log('Form errors:', form.formState.errors)
+                  }}
+                >
+                  Debug Form
+                </Button>
                 <Button type="submit" disabled={isLoading}>
                   {isLoading ? "Creating..." : "Create Application"}
                 </Button>
@@ -457,6 +721,7 @@ export function CitizenForm() {
             </form>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   )
