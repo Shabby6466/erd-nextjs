@@ -183,7 +183,7 @@ export function DetailForm({ data, title, onNext, onBack, passportPhoto }: Detai
                 htmlFor="pakistanAddress"
                 className="absolute left-3 top-3 text-xs text-gray-500"
               >
-                Pakistan Address
+                Address
               </Label>
               <p className="mt-1 pt-6 pl-3 border-0 text-sm text-gray-800">
                 {data?.pakistan_address || "Not available"}

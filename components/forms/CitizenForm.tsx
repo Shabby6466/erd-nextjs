@@ -89,7 +89,6 @@ export function CitizenForm() {
       mother_name: "",
       gender: "",
       date_of_birth: "",
-      // nationality: "",
       profession: "",
       pakistan_city: "",
       pakistan_address: "",
@@ -106,7 +105,10 @@ export function CitizenForm() {
       securityDeposit: "",
       amount: 0,
       currency: "",
-      // is_fia_blacklist: false,
+      is_fia_blacklist: false,
+      status: "DRAFT",
+      passport_api_data: undefined,
+      nadra_api_data: undefined,
     },
   })
 
@@ -216,6 +218,9 @@ export function CitizenForm() {
         form.setValue("image", passportData.photograph)
       }
 
+      // Store passport API data for submission
+      form.setValue("passport_api_data", passportData)
+
       showNotification.success("Data fetched successfully from Passport API")
     } catch (passportError) {
       console.warn('Passport API failed, trying NADRA API:', passportError)
@@ -232,6 +237,10 @@ export function CitizenForm() {
           setPassportPhoto(null)
           setImageBase64("")
         }
+
+        // Store NADRA API data for submission
+        form.setValue("nadra_api_data", data)
+
         showNotification.success("Data fetched successfully from NADRA API (no photo available - please upload manually)")
       } catch (nadraError: unknown) {
         const errorMessage = nadraError instanceof Error 
@@ -274,6 +283,9 @@ export function CitizenForm() {
         setImageBase64(passportData.photograph)
       }
 
+      // Store passport API data for submission
+      form.setValue("passport_api_data", passportData)
+
       showNotification.success("Data fetched successfully from Passport API")
     } catch (passportError) {
       console.warn('Passport API failed, trying NADRA API:', passportError)
@@ -283,6 +295,10 @@ export function CitizenForm() {
         form.reset(data)
         setPassportPhoto(null) // Clear any previous photo
         setImageBase64("") // Clear base64 image
+
+        // Store NADRA API data for submission
+        form.setValue("nadra_api_data", data)
+
         showNotification.success("Data fetched successfully from NADRA API (no photo available - please upload manually)")
       } catch (nadraError: unknown) {
         const errorMessage = nadraError instanceof Error 
@@ -296,7 +312,9 @@ export function CitizenForm() {
   }
 
   const onSubmit = async (data: CitizenFormData) => {
+    console.log('Form submission started with data:', data)
     setIsLoading(true)
+    
     try {
       // Validate that image is provided
       if (!data.image || data.image.trim() === '') {
@@ -305,21 +323,94 @@ export function CitizenForm() {
         return
       }
 
-      // Ensure status is always set to DRAFT for new applications and handle optional fields
+      console.log('Image validation passed')
+
+      // Prepare API data objects
+      const now = new Date().toISOString()
+      
+      // Create passport API data if we have passport information (optional)
+      const passportApiData = data.passport_api_data ? {
+        createdAt: now,
+        updatedAt: now,
+        citizen_id: data.citizen_id,
+        image_url: data.image ? `data:image/jpeg;base64,${data.image}` : "",
+        first_name: data.first_name,
+        last_name: data.last_name,
+        father_name: data.father_name,
+        pakistan_city: data.pakistan_city,
+        gender: data.gender,
+        date_of_birth: data.date_of_birth,
+        birth_country: data.birth_country,
+        birth_city: data.birth_city,
+        profession: data.profession,
+        pakistan_address: data.pakistan_address,
+        response_status: "SUCCESS",
+        api_response_date: now,
+        raw_response: data.passport_api_data
+      } : undefined
+
+      // Create NADRA API data if we have NADRA information (optional)
+      const nadraApiData = data.nadra_api_data ? {
+        createdAt: now,
+        updatedAt: now,
+        citizen_id: data.citizen_id,
+        image_url: data.image ? `data:image/jpeg;base64,${data.image}` : "",
+        first_name: data.first_name,
+        last_name: data.last_name,
+        father_name: data.father_name,
+        mother_name: data.mother_name,
+        pakistan_city: data.pakistan_city,
+        date_of_birth: data.date_of_birth,
+        birth_country: data.birth_country,
+        birth_city: data.birth_city,
+        profession: data.profession,
+        pakistan_address: data.pakistan_address,
+        response_status: "SUCCESS",
+        api_response_date: now,
+        raw_response: data.nadra_api_data
+      } : undefined
+
+      console.log('Passport API data:', passportApiData ? 'present' : 'not present')
+      console.log('NADRA API data:', nadraApiData ? 'present' : 'not present')
+
+      // Format the application data according to the new API structure
       const applicationData = {
-        ...data,
-        status: "DRAFT",
+        first_name: data.first_name,
+        last_name: data.last_name,
+        image: data.image,
+        father_name: data.father_name,
+        mother_name: data.mother_name,
+        citizen_id: data.citizen_id,
+        gender: data.gender,
+        pakistan_city: data.pakistan_city,
+        date_of_birth: data.date_of_birth,
+        birth_country: data.birth_country,
+        birth_city: data.birth_city,
+        profession: data.profession,
+        pakistan_address: data.pakistan_address,
         height: data.height || "",
-        color_of_eyes: data.color_of_eyes || "",
         color_of_hair: data.color_of_hair || "",
+        color_of_eyes: data.color_of_eyes || "",
+        departure_date: data.departure_date,
         transport_mode: data.transport_mode || "",
-        reason_for_deport: data.reason_for_deport || "",
-        currency: data.currency || "",
-        securityDeposit: data.securityDeposit || "",
         investor: data.investor || "",
-        amount: data.amount || 0
+        requested_by: data.requested_by,
+        reason_for_deport: data.reason_for_deport || "",
+        amount: data.amount || 0,
+        currency: data.currency || "",
+        is_fia_blacklist: data.is_fia_blacklist || false,
+        status: "DRAFT",
+        passport_photo_url: data.image ? `data:image/jpeg;base64,${data.image}` : undefined,
+        other_documents_url: undefined, // Will be set when documents are uploaded
+        passport_api_data: passportApiData,
+        nadra_api_data: nadraApiData
       }
+
+      console.log('Sending application data to API:', applicationData)
+      console.log('API endpoint: /applications')
+
       const application = await applicationAPI.create(applicationData)
+      console.log('API response received:', application)
       showNotification.success("Application created successfully")
 
       // Navigate based on user role
@@ -333,7 +424,12 @@ export function CitizenForm() {
         console.log('Redirecting to application details page')
         router.push(`/applications/${application.id}`)
       }
-    } catch {
+    } catch (error) {
+      console.error('Error creating application:', error)
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
       showNotification.error("Failed to create application")
     } finally {
       setIsLoading(false)
@@ -390,7 +486,10 @@ export function CitizenForm() {
             </CardHeader>
             <CardContent>
 
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+                console.error('Form validation errors:', errors)
+                showNotification.error("Please fix the form errors before submitting")
+              })} className="space-y-6">
                 {/* Citizen ID Section */}
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
@@ -571,7 +670,7 @@ export function CitizenForm() {
                 </div>
                 <div>
                   <Label htmlFor="investor">Investor</Label>
-                  <Input id="transport_mode" placeholder="Gov of Pakistan" {...form.register("investor")} />
+                  <Input id="investor" placeholder="Gov of Pakistan" {...form.register("investor")} />
                 </div>
                 <div>
                   <Label htmlFor="requested_by">Requested By</Label>
@@ -604,6 +703,16 @@ export function CitizenForm() {
               <div className="flex justify-end gap-4">
                 <Button type="button" variant="outline" onClick={() => router.back()}>
                   Cancel
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    console.log('Current form values:', form.getValues())
+                    console.log('Form errors:', form.formState.errors)
+                  }}
+                >
+                  Debug Form
                 </Button>
                 <Button type="submit" disabled={isLoading}>
                   {isLoading ? "Creating..." : "Create Application"}

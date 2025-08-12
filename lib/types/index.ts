@@ -74,6 +74,9 @@ export interface Application {
   etdExpiryDate?: string
   blacklistCheckPassed?: boolean
   reviewedAt?: string
+  // API data fields
+  nadra_api_data?: any
+  passport_api_data?: any
 }
 
 export interface ApplicationAttachment {

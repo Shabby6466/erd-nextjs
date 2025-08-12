@@ -123,7 +123,7 @@ export default function PrintApplicationPage() {
           {/* Photograph Section */}
           {application.image && (
             <div className="mb-6">
-              <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 pb-2">
+              <h2 className="text-xl font-semibold mb-1 border-b border-gray-200 pb-2">
                 Photograph
               </h2>
               <div className="flex justify-center mb-4">

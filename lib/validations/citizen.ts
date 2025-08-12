@@ -1,7 +1,6 @@
 import { z } from "zod"
 
 export const citizenSchema = z.object({
-  title:z.string(),
   citizen_id: z
     .string({ invalid_type_error: "citizen_id must be a 13-digit number string", required_error: "citizen_id must be a 13-digit number string" })
     .length(13, "citizen_id must be exactly 13 digits")
@@ -13,7 +12,6 @@ export const citizenSchema = z.object({
   mother_name: z.string().min(1, "Mother's name is required").max(100, "Mother's name too long"),
   gender: z.string().min(1, "Gender is required"),
   date_of_birth: z.string().min(1, "Date of birth is required"),
-  // nationality: z.string().min(1, "Nationality is required"),
   profession: z.string().min(1, "Profession is required"),
   pakistan_city: z.string().min(1, "City is required"),
   pakistan_address: z.string().min(1, "Address is required").max(200, "Address too long"),
@@ -32,8 +30,10 @@ export const citizenSchema = z.object({
   currency: z.string({ invalid_type_error: "currency must be a string" }).optional(),
   is_fia_blacklist: z.coerce.boolean().default(false),
   status: z.string().optional().default("DRAFT"),
-  investor:z.string().optional(),
-  securityDeposit:z.string().optional()
+  investor: z.string().optional(),
+  securityDeposit: z.string().optional(),
+  passport_api_data: z.any().optional(),
+  nadra_api_data: z.any().optional()
 })
 
 export type CitizenFormData = z.infer<typeof citizenSchema>

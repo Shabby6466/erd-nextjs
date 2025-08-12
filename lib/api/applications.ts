@@ -80,22 +80,22 @@ const transformApplicationData = (apiData: any): Application => {
 }
 
 export interface CreateApplicationData {
-  citizen_id: string
   first_name: string
   last_name: string
+  image: string
   father_name: string
   mother_name: string
+  citizen_id: string
   gender: string
-  date_of_birth: string
-  // nationality: string
-  profession: string
   pakistan_city: string
-  pakistan_address: string
+  date_of_birth: string
   birth_country: string
   birth_city: string
+  profession: string
+  pakistan_address: string
   height: string
-  color_of_eyes: string
   color_of_hair: string
+  color_of_eyes: string
   departure_date: string
   transport_mode: string
   investor: string
@@ -105,7 +105,46 @@ export interface CreateApplicationData {
   currency: string
   is_fia_blacklist: boolean
   status: string
-  securityDeposit: string
+  passport_photo_url?: string
+  other_documents_url?: string
+  passport_api_data?: {
+    createdAt: string
+    updatedAt: string
+    citizen_id: string
+    image_url: string
+    first_name: string
+    last_name: string
+    father_name: string
+    pakistan_city: string
+    gender: string
+    date_of_birth: string
+    birth_country: string
+    birth_city: string
+    profession: string
+    pakistan_address: string
+    response_status: string
+    api_response_date: string
+    raw_response: any
+  }
+  nadra_api_data?: {
+    createdAt: string
+    updatedAt: string
+    citizen_id: string
+    image_url: string
+    first_name: string
+    last_name: string
+    father_name: string
+    mother_name: string
+    pakistan_city: string
+    date_of_birth: string
+    birth_country: string
+    birth_city: string
+    profession: string
+    pakistan_address: string
+    response_status: string
+    api_response_date: string
+    raw_response: any
+  }
 }
 
 
@@ -128,8 +167,18 @@ export const applicationAPI = {
 
   // Create new application
   create: async (data: CreateApplicationData): Promise<Application> => {
-    const response = await apiClient.post("/applications", data)
-    return transformApplicationData(response.data)
+    console.log('API create called with data:', data)
+    console.log('API URL:', `${apiClient.defaults.baseURL}/applications`)
+    console.log('Request headers:', apiClient.defaults.headers)
+    
+    try {
+      const response = await apiClient.post("/applications", data)
+      console.log('API response:', response.data)
+      return transformApplicationData(response.data)
+    } catch (error) {
+      console.error('API create error:', error)
+      throw error
+    }
   },
 
   // Update application
@@ -198,13 +247,17 @@ export const applicationAPI = {
     
     try {
       const response = await apiClient.patch(`/applications/${id}/review`, payload)
+      console.log('Ministry review successful:', response.data)
       return transformApplicationData(response.data)
     } catch (error: any) {
-      console.error('API Error details:', {
+      console.error('Ministry review API Error details:', {
         url: `${apiClient.defaults.baseURL}/applications/${id}/review`,
         method: 'PATCH',
         payload,
-        error: error.response?.data || error.message
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
       })
       throw error
     }
@@ -368,11 +421,29 @@ export const applicationAPI = {
 
   updateStatus: async (id: string, data: {
     status: string,
-    rejection_reason?: string
+    rejection_reason?: string,
+    black_list_check?: boolean
   }): Promise<Application> => {
     console.log('Updating application status:', { id, data })
-    const response = await apiClient.patch(`/applications/${id}/status`, data)
-    return transformApplicationData(response.data)
+    console.log('API endpoint (PATCH):', `/applications/${id}/status`)
+    console.log('Base URL:', apiClient.defaults.baseURL)
+    
+    try {
+      const response = await apiClient.patch(`/applications/${id}/status`, data)
+      console.log('Status update successful:', response.data)
+      return transformApplicationData(response.data)
+    } catch (error: any) {
+      console.error('Status update API Error details:', {
+        url: `${apiClient.defaults.baseURL}/applications/${id}/status`,
+        method: 'PATCH',
+        payload: data,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      })
+      throw error
+    }
   },
 
   printApplication: async (id: string): Promise<Blob> => {
