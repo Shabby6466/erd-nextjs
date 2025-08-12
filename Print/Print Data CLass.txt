@@ -1,0 +1,449 @@
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Printing;
+using System.Drawing.Text;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace etd.dgip.Class
+{
+    public class PrintData
+    {
+       
+        private string fileName = "";
+
+        private ArrayList printField = new ArrayList();
+
+        private ArrayList printImage = new ArrayList();
+
+        private ArrayList printLine = new ArrayList();
+
+        private string orientation = "Portrate";
+
+        private bool ifColorPrint = true;
+
+        private PrintDocument tmpprndoc = null;
+
+        public PrintData()
+        {
+            fileName = "";
+            printField = new ArrayList();
+            printImage = new ArrayList();
+            printLine = new ArrayList();
+            orientation = "Portrate";
+            ifColorPrint = true;
+            tmpprndoc = null;
+        }
+
+
+
+        public bool Comparison(int start, int length, string orig, string val)
+        {
+            bool flag;
+            flag = (string.Compare(orig.Trim().Substring(start, length).ToLower(), val) != 0 ? false : true);
+            return flag;
+        }
+
+        private void general_Print(object sender, PrintPageEventArgs e)
+        {
+            int i;
+            Graphics graphics = e.Graphics;
+            graphics.PageUnit = GraphicsUnit.Millimeter;
+            Brush solidBrush = new SolidBrush(Color.Black);
+            Pen pen = new Pen(solidBrush);
+
+
+            
+
+            for (i = 0; i < this.printField.Count; i++)
+            {
+                graphics.DrawString(((DataRecord)this.printField[i]).textData, new Font(((DataRecord)this.printField[i]).fontName, ((DataRecord)this.printField[i]).fontStyle), solidBrush, ((DataRecord)this.printField[i]).x_cord, ((DataRecord)this.printField[i]).y_cord);
+            }
+
+            for (i = 0; i < this.printLine.Count; i++)
+            {
+                pen.Width = (float)((Lines)this.printLine[i]).thickness;
+                graphics.DrawLine(pen, ((Lines)this.printLine[i]).x_cord, ((Lines)this.printLine[i]).y_cord, ((Lines)this.printLine[i]).x1_cord, ((Lines)this.printLine[i]).y1_cord);
+            }
+            for (i = 0; i < this.printImage.Count; i++)
+            {
+                Image item = ((ImageRecord)this.printImage[i]).imageData;
+                if (item != null)
+                {
+                    graphics.DrawImage(item, ((ImageRecord)this.printImage[i]).x_cord, ((ImageRecord)this.printImage[i]).y_cord, ((ImageRecord)this.printImage[i]).width, ((ImageRecord)this.printImage[i]).height);
+                }
+            }
+            //OCR A Extended
+            FontFamily fontFamily = new FontFamily("OCR-B 10 BT");
+            Font font = new Font(
+            fontFamily,
+               14,
+               FontStyle.Regular,
+               GraphicsUnit.Point);
+            PointF pointF = new PointF(70.0F, 130.0F);
+
+            graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+
+            using (Font the_font = font)
+            {
+                              
+                DrawRotatedTextAt(e.Graphics, -90, "Illegal Entry in Turkey\nand May be Deported May\nbe BlackList",
+                    70, 160, the_font, Brushes.Red);
+            
+            }
+
+        }
+
+        private void DrawRotatedTextAt(Graphics gr, float angle,    string txt, int x, int y, Font the_font, Brush the_brush)
+        {
+            // Save the graphics state.
+            
+            gr.ResetTransform();
+
+            // Rotate.
+            gr.RotateTransform(angle);
+
+            // Translate to desired position. Be sure to append
+            // the rotation so it occurs after the rotation.
+            gr.TranslateTransform(x, y, MatrixOrder.Append);
+
+            // Draw the text at the origin.
+            gr.DrawString(txt, the_font, the_brush, 0, 0);
+
+            // Restore the graphics state.
+            
+        }
+        public string GetValue(string iniLine)
+        {
+            iniLine = iniLine.Trim();
+            int num = iniLine.IndexOf("=");
+            return iniLine.Substring(num + 1);
+        }
+
+        public bool IsComment(string val)
+        {
+            bool flag;
+            flag = (val.ToCharArray()[0] != ';' ? false : true);
+            return flag;
+        }
+
+        public bool IsQuoted(string val)
+        {
+            bool flag;
+            flag = (val.ToCharArray()[0] != '\"' ? false : true);
+            return flag;
+        }
+
+        public void Print()
+        {
+            if (this.tmpprndoc == null)
+            {
+                this.tmpprndoc = new PrintDocument();
+            }
+            if (string.Compare(this.orientation, "landscape") == 0)
+            {
+                this.tmpprndoc.DefaultPageSettings.Landscape = true;
+            }
+            tmpprndoc.PrintController = new StandardPrintController();
+            tmpprndoc.DefaultPageSettings.Color = this.ifColorPrint;
+            tmpprndoc.PrintPage += new PrintPageEventHandler(this.general_Print);
+            // tmpprndoc.Document = prdoc;
+            //tmpprndoc.ShowDialog();
+            //tmpprndoc.PrintPa;
+            PrintDialog printdlg = new PrintDialog();
+            PrintPreviewDialog printPrvDlg = new PrintPreviewDialog();
+
+            // preview the assigned document or you can create a different previewButton for it
+            printPrvDlg.Document = tmpprndoc;
+            printPrvDlg.ShowDialog(); // this shows the preview and then show the Printer Dlg below
+
+            printdlg.Document = tmpprndoc;
+
+            //if (printdlg.ShowDialog() == DialogResult.OK)
+            //{
+            //    tmpprndoc.Print();
+            //}
+        }
+
+        public bool ReadIni()
+        {
+            string[] strArrays;
+            bool flag;
+            char[] chrArray;
+            //var path = "E:\NPF.ini";
+            //fileName = @"E:\NPF.ini" ;
+            
+            string path = @"D:\IMPASS DEVELOPMENT\ongoing\ETD Build\etd.dgip 25022022\etd.dgip\NPF.ini";
+        
+        //MessageBox.Show((@path));
+        fileName = @path;
+            try
+            {
+                string str = "";
+                string str1 = "";
+                string str2 = "";
+                float single = 0f;
+                float single1 = 0f;
+                float single2 = 0f;
+                float single3 = 0f;
+                float single4 = 0f;
+                float single5 = 0f;
+                float single6 = 0f;
+                float single7 = 0f;
+                float single8 = 1f;
+                bool flag1 = false;
+
+                Font font = new Font("OCR-B-10 BT", 10.5f);
+                FontStyle fontStyle = FontStyle.Regular;
+
+                //Font font = new Font("Arial", 12f);
+                //FontStyle fontStyle = FontStyle.Regular;
+
+                StreamReader streamReader = File.OpenText(this.fileName);
+                while (true)
+                {
+                    string str3 = streamReader.ReadLine();
+                    string str4 = str3;
+                    if (str3 == null)
+                    {
+                        break;
+                    }
+                    str4 = str4.Trim();
+                    if (string.Compare(str4, "") != 0)
+                    {
+                        if (!this.IsComment(str4))
+                        {
+                            if (this.Comparison(0, 2, str4, "or"))
+                            {
+                                this.orientation = this.GetValue(str4).Trim();
+                            }
+                            else if (this.Comparison(0, 3, str4, "col"))
+                            {
+                                if (!this.GetValue(str4).Trim().ToLower().Equals("true"))
+                                {
+                                    this.ifColorPrint = false;
+                                }
+                                else
+                                {
+                                    this.ifColorPrint = true;
+                                }
+                            }
+                            else if (this.Comparison(0, 2, str4, "li"))
+                            {
+                                str = this.GetValue(str4).Trim();
+                                chrArray = new char[] { ',' };
+                                strArrays = str.Split(chrArray);
+                                if ((int)strArrays.Length >= 1)
+                                {
+                                    single4 = float.Parse(strArrays[0].Trim());
+                                }
+                                if ((int)strArrays.Length >= 2)
+                                {
+                                    single5 = float.Parse(strArrays[1].Trim());
+                                }
+                                if ((int)strArrays.Length >= 3)
+                                {
+                                    single6 = float.Parse(strArrays[2].Trim());
+                                }
+                                if ((int)strArrays.Length >= 4)
+                                {
+                                    single7 = float.Parse(strArrays[3].Trim());
+                                }
+                                if ((int)strArrays.Length >= 5)
+                                {
+                                    single8 = float.Parse(strArrays[4].Trim());
+                                }
+                                this.printLine.Add(new Lines(single4, single5, single6, single7, single8));
+                            }
+                            else if (this.Comparison(0, 2, str4, "fi"))
+                            {
+                                str = this.GetValue(str4).Trim();
+                                chrArray = new char[] { ',' };
+                                char[] chrArray1 = chrArray;
+                                str2 = "";
+                                strArrays = str.Split(chrArray1, 2);
+                                if ((int)strArrays.Length >= 1)
+                                {
+                                    str1 = strArrays[0];
+                                }
+                                if ((int)strArrays.Length >= 2)
+                                {
+                                    str2 = strArrays[1];
+                                }
+                                if (string.Compare(str2.Trim(), "image") != 0)
+                                {
+                                    this.printField.Add(new DataRecord(str1, str2, 0f, 0f, font, fontStyle));
+                                }
+                                else
+                                {
+                                    this.printImage.Add(new ImageRecord(str1, null, 0f, 0f, 20f, 20f));
+                                }
+                            }
+                            else if (this.Comparison(0, 2, str4, "it"))
+                            {
+                                str = this.GetValue(str4).Trim();
+                                chrArray = new char[] { ',' };
+                                strArrays = str.Split(chrArray);
+                                if ((int)strArrays.Length >= 1)
+                                {
+                                    single = float.Parse(strArrays[0].Trim());
+                                }
+                                if ((int)strArrays.Length >= 2)
+                                {
+                                    single1 = float.Parse(strArrays[1].Trim());
+                                }
+                                if ((int)strArrays.Length >= 3)
+                                {
+                                    str = strArrays[2];
+                                    str = str.Trim();
+                                    if (!this.IsQuoted(str))
+                                    {
+                                        str1 = str;
+                                    }
+                                    else
+                                    {
+                                        str2 = str.Replace('\"', ' ');
+                                        str1 = "";
+                                    }
+                                    str1 = str1.Trim();
+                                }
+                                int num = 0;
+                                while (num < this.printImage.Count)
+                                {
+                                    if (string.Compare(((ImageRecord)this.printImage[num]).name, str1) != 0)
+                                    {
+                                        num++;
+                                    }
+                                    else
+                                    {
+                                        if ((int)strArrays.Length >= 5)
+                                        {
+                                            single2 = float.Parse(strArrays[3].Trim());
+                                            single3 = float.Parse(strArrays[4].Trim());
+                                        }
+                                        ImageRecord imageRecord = new ImageRecord(((ImageRecord)this.printImage[num]).name, ((ImageRecord)this.printImage[num]).imageData, single, single1, single2, single3);
+                                        this.printImage.RemoveAt(num);
+                                        this.printImage.Insert(num, imageRecord);
+                                        flag1 = true;
+                                        break;
+                                    }
+                                }
+                                if (!flag1)
+                                {
+                                    if ((int)strArrays.Length >= 5)
+                                    {
+                                        font = new Font(strArrays[3].Trim(), float.Parse(strArrays[4].Trim()));
+                                    }
+                                    fontStyle = FontStyle.Regular;
+                                    if ((int)strArrays.Length >= 6)
+                                    {
+                                        str = strArrays[5];
+                                        str = str.Trim();
+                                        if (str.Equals("b"))
+                                        {
+                                            fontStyle = FontStyle.Bold;
+                                        }
+                                        else if (str.Equals("i"))
+                                        {
+                                            fontStyle = FontStyle.Italic;
+                                        }
+                                        else if (str.Equals("u"))
+                                        {
+                                            fontStyle = FontStyle.Underline;
+                                        }
+                                    }
+                                    if (string.Compare(str1, "") != 0)
+                                    {
+                                        num = 0;
+                                        while (num < this.printField.Count)
+                                        {
+                                            if (string.Compare(((DataRecord)this.printField[num]).name, str1) != 0)
+                                            {
+                                                num++;
+                                            }
+                                            else
+                                            {
+                                                DataRecord dataRecord = new DataRecord(((DataRecord)this.printField[num]).name, ((DataRecord)this.printField[num]).textData, single, single1, font, fontStyle);
+                                                this.printField.RemoveAt(num);
+                                                this.printField.Insert(num, dataRecord);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        this.printField.Add(new DataRecord(str1, str2, single, single1, font, fontStyle));
+                                    }
+                                }
+                                else
+                                {
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+                this.printField.TrimToSize();
+                this.printImage.TrimToSize();
+                flag = true;
+            }
+            catch (Exception exception1)
+            {
+                Exception exception = exception1;
+                //MessageBox.Show(string.Concat("Could not read ini file. ", exception.Message), "Print", MessageBoxButtons.OK, MessageBoxIcon.Hand);
+                flag = false;
+            }
+            return flag;
+        }
+
+        public void SetField(string name, string val)
+        {
+            int index = 0;
+            while (true)
+            {
+                if (index < printField.Count)
+                {
+                    if (string.Compare(((DataRecord)this.printField[index]).name, name) != 0)
+                    {
+                        index++;
+                        continue;
+                    }
+                    DataRecord record = new DataRecord(((DataRecord)this.printField[index]).name, val, ((DataRecord)this.printField[index]).x_cord, ((DataRecord)this.printField[index]).y_cord, ((DataRecord)this.printField[index]).fontName, ((DataRecord)this.printField[index]).fontStyle);
+                    this.printField.RemoveAt(index);
+                    this.printField.Insert(index, record);
+                }
+                return;
+            }
+        }
+
+        
+
+        public void SetImage(string name, Image im)
+        
+        {
+            int num = 0;
+            while (num < this.printImage.Count)
+            {
+                if (string.Compare(((ImageRecord)this.printImage[num]).name, name) != 0)
+                {
+                    num++;
+                }
+                else
+                {
+                    ImageRecord imageRecord = new ImageRecord(((ImageRecord)this.printImage[num]).name, im, ((ImageRecord)this.printImage[num]).x_cord, ((ImageRecord)this.printImage[num]).y_cord, ((ImageRecord)this.printImage[num]).width, ((ImageRecord)this.printImage[num]).height);
+                    this.printImage.RemoveAt(num);
+                    this.printImage.Insert(num, imageRecord);
+                    break;
+                }
+            }
+        }
+
+    }
+}

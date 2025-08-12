@@ -6,6 +6,7 @@ import { Application } from "@/lib/types"
 import { showNotification } from "@/lib/utils/notifications"
 import { formatDate } from "@/lib/utils/formatting"
 import { applicationAPI } from "@/lib/api/applications"
+import DGIPWatermarks from "@/components/ui/dgip_watermark"
 
 export default function PrintApplicationPage() {
   const params = useParams()
@@ -32,9 +33,30 @@ export default function PrintApplicationPage() {
   useEffect(() => {
     if (application) {
       // Auto-print when application is loaded
-      window.print()
+      // window.print() // Commented out to let user control printing
     }
   }, [application])
+
+  const handlePrint = () => {
+    window.print()
+  }
+
+  // Generate OCR lines for machine readability
+  const generateOCR1 = (application: Application) => {
+    const surname = application.lastName?.toUpperCase() || ""
+    const givenNames = application.firstName?.toUpperCase() || ""
+    return `P<PAK${surname}<<${givenNames}<<<<<<<<<<<<<<<<<<<<<<<<<<`
+  }
+
+  const generateOCR2 = (application: Application) => {
+    const documentNo = application.id?.replace(/-/g, "") || "000000000"
+    const citizenNo = application.citizenId?.replace(/-/g, "") || "0000000000000"
+    const birthDate = application.dateOfBirth ? new Date(application.dateOfBirth).toISOString().slice(2, 10).replace(/-/g, "") : "000000"
+    const expiryDate = application.etdExpiryDate ? new Date(application.etdExpiryDate).toISOString().slice(2, 10).replace(/-/g, "") : "000000"
+    const gender = application.gender?.toUpperCase() === "MALE" ? "M" : "F"
+    
+    return `${documentNo}<8PAK${birthDate}${gender}${expiryDate}${citizenNo}<<<<<<<<<<<<<<`
+  }
 
   if (isLoading) {
     return (
@@ -58,250 +80,232 @@ export default function PrintApplicationPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-8 bg-white min-h-screen print:p-4">
-      {/* Header */}
-      <div className="text-center mb-8 border-b-2 border-gray-300 pb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          EMERGENCY TRAVEL DOCUMENT
-        </h1>
-        <p className="text-lg text-gray-600">
-          Government of Pakistan - Ministry of Interior
+    <div className="max-w-[263mm] mx-auto bg-white min-h-[123mm] print:p-0 print:m-0 print:max-w-none print:min-h-screen">
+      {/* Print Controls - Hidden during print */}
+      <div className="print:hidden mb-4 text-center">
+        <button
+          onClick={handlePrint}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Print Document
+        </button>
+        <p className="text-sm text-gray-600 mt-2">
+          This document will be formatted for A4 paper printing
         </p>
-        <div className="mt-4 text-sm text-gray-500">
-          Application ID: {application.id}
-        </div>
       </div>
 
-      {/* Personal Information */}
-      <div className="grid grid-cols-2 gap-8 mb-8">
-        <div>
-          <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 pb-2">
-            Personal Information
-          </h2>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="font-medium text-gray-700">First Name:</label>
-                <p className="text-gray-900">{application.firstName}</p>
-              </div>
-              <div>
-                <label className="font-medium text-gray-700">Last Name:</label>
-                <p className="text-gray-900">{application.lastName}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="font-medium text-gray-700">Father&apos;s Name:</label>
-                <p className="text-gray-900">{application.fatherName}</p>
-              </div>
-              <div>
-                <label className="font-medium text-gray-700">Mother&apos;s Name:</label>
-                <p className="text-gray-900">{application.motherName}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="font-medium text-gray-700">CNIC:</label>
-                <p className="text-gray-900 font-mono">{application.citizenId}</p>
-              </div>
-              <div>
-                <label className="font-medium text-gray-700">Date of Birth:</label>
-                <p className="text-gray-900">{formatDate(application.dateOfBirth)}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              
-              <div>
-                <label className="font-medium text-gray-700">Profession:</label>
-                <p className="text-gray-900">{application.profession}</p>
-              </div>
-            </div>
-          </div>
+      {/* Watermarks for official document appearance */}
+      <DGIPWatermarks 
+        leftOpacity={0.05} 
+        rightOpacity={0.03} 
+        layerZ={1}
+      />
+      
+      {/* Document Container - Following NPF.ini dimensions */}
+      <div className="relative w-[263mm] h-[123mm] bg-white border border-gray-300 print:border-0 print-document">
+        
+        {/* Header - Islamic Republic of Pakistan */}
+        <div className="absolute top-[7.8mm] left-[7.8mm] text-[6pt] font-bold text-gray-800">
+          ISLAMIC REPUBLIC OF
+        </div>
+        <div className="absolute top-[9.1mm] left-[6.4mm] text-[14pt] font-bold text-gray-800">
+          PAKISTAN
+        </div>
+        <div className="absolute top-[15mm] left-[12mm] text-[14pt] font-bold text-gray-800">
+          EMERGENCY TRAVEL DOCUMENT
         </div>
 
-        <div>
-          {/* Photograph Section */}
-          {application.image && (
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold mb-1 border-b border-gray-200 pb-2">
-                Photograph
-              </h2>
-              <div className="flex justify-center mb-4">
-                <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
-                  <img 
-                    src={`data:image/jpeg;base64,${application.image}`}
-                    alt="Citizen Photograph" 
-                    className="w-32 h-40 object-cover rounded"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 pb-2">
-            Physical Description
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <label className="font-medium text-gray-700">Height:</label>
-              <p className="text-gray-900">{application.height}</p>
-            </div>
-            <div>
-              <label className="font-medium text-gray-700">Eye Color:</label>
-              <p className="text-gray-900">{application.colorOfEyes}</p>
-            </div>
-            <div>
-              <label className="font-medium text-gray-700">Hair Color:</label>
-              <p className="text-gray-900">{application.colorOfHair}</p>
-            </div>
-          </div>
-
-          <h2 className="text-xl font-semibold mt-6 mb-4 border-b border-gray-200 pb-2">
-            Address Information
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <label className="font-medium text-gray-700">City:</label>
-              <p className="text-gray-900">{application.pakistanCity}</p>
-            </div>
-            <div>
-              <label className="font-medium text-gray-700">Address:</label>
-              <p className="text-gray-900">{application.pakistanAddress}</p>
-            </div>
-          </div>
+        {/* Document Type and Country Code */}
+        <div className="absolute top-[190mm] left-[87mm] text-[5pt] text-gray-600">
+          Type
         </div>
-      </div>
-
-      {/* Travel Information */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 pb-2">
-          Travel Information
-        </h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="font-medium text-gray-700">Departure Date:</label>
-            <p className="text-gray-900">{formatDate(application.departureDate)}</p>
-          </div>
-          <div>
-            <label className="font-medium text-gray-700">Transport Mode:</label>
-            <p className="text-gray-900">{application.transportMode}</p>
-          </div>
+        <div className="absolute top-[192.5mm] left-[89mm] text-[8pt] font-semibold">
+          P
         </div>
-      </div>
 
-      {/* Status and Approval */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 pb-2">
-          Document Status
-        </h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="font-medium text-gray-700">Status:</label>
-            <p className="text-gray-900 font-semibold">{application.status}</p>
-          </div>
-          <div>
-            <label className="font-medium text-gray-700">Issue Date:</label>
-            <p className="text-gray-900">{formatDate(application.updatedAt)}</p>
-          </div>
+        <div className="absolute top-[190mm] left-[98mm] text-[5pt] text-gray-600">
+          Country Code
         </div>
-        {application.remarks && (
-          <div className="mt-4">
-            <label className="font-medium text-gray-700">Remarks:</label>
-            <p className="text-gray-900">{application.remarks}</p>
+        <div className="absolute top-[192.5mm] left-[100mm] text-[8pt] font-semibold">
+          PAK
+        </div>
+
+        {/* Document Number */}
+        <div className="absolute top-[190mm] left-[119mm] text-[5pt] text-gray-600">
+          Document No
+        </div>
+        <div className="absolute top-[192.5mm] left-[121mm] text-[8pt] font-semibold">
+          {application.id}
+        </div>
+
+        {/* Personal Information */}
+        <div className="absolute top-[196.5mm] left-[87mm] text-[5pt] text-gray-600">
+          Surname
+        </div>
+        <div className="absolute top-[198.5mm] left-[89mm] text-[8pt] font-semibold">
+          {application.lastName?.toUpperCase()}
+        </div>
+
+        <div className="absolute top-[202.5mm] left-[87mm] text-[5pt] text-gray-600">
+          Given Names
+        </div>
+        <div className="absolute top-[204.5mm] left-[89mm] text-[8pt] font-semibold">
+          {application.firstName?.toUpperCase()}
+        </div>
+
+        <div className="absolute top-[208.5mm] left-[87mm] text-[5pt] text-gray-600">
+          Nationality
+        </div>
+        <div className="absolute top-[210.5mm] left-[89mm] text-[8pt] font-semibold">
+          PAKISTANI
+        </div>
+
+        <div className="absolute top-[214.5mm] left-[87mm] text-[5pt] text-gray-600">
+          Date of birth
+        </div>
+        <div className="absolute top-[216.5mm] left-[89mm] text-[8pt] font-semibold">
+          {formatDate(application.dateOfBirth)}
+        </div>
+
+        <div className="absolute top-[220.5mm] left-[87mm] text-[5pt] text-gray-600">
+          Sex
+        </div>
+        <div className="absolute top-[222.5mm] left-[89mm] text-[8pt] font-semibold">
+          {application.gender?.toUpperCase() === "MALE" ? "M" : "F"}
+        </div>
+
+        <div className="absolute top-[226.5mm] left-[87mm] text-[5pt] text-gray-600">
+          Date of Issue
+        </div>
+        <div className="absolute top-[228.5mm] left-[89mm] text-[8pt] font-semibold">
+          {application.etdIssueDate ? formatDate(application.etdIssueDate) : formatDate(application.updatedAt)}
+        </div>
+
+        <div className="absolute top-[232.5mm] left-[87mm] text-[5pt] text-gray-600">
+          Date of Expiry
+        </div>
+        <div className="absolute top-[234.5mm] left-[89mm] text-[8pt] font-semibold">
+          {application.etdExpiryDate ? formatDate(application.etdExpiryDate) : "6 MONTHS FROM ISSUE"}
+        </div>
+
+        {/* Right Column Information */}
+        <div className="absolute top-[220.5mm] left-[119mm] text-[5pt] text-gray-600">
+          Citizen Number
+        </div>
+        <div className="absolute top-[222.5mm] left-[121mm] text-[8pt] font-semibold">
+          {application.citizenId}
+        </div>
+
+        <div className="absolute top-[226.5mm] left-[119mm] text-[5pt] text-gray-600">
+          Issuing Authority
+        </div>
+        <div className="absolute top-[228.5mm] left-[121mm] text-[8pt] font-semibold">
+          PAKISTAN
+        </div>
+
+        <div className="absolute top-[232.5mm] left-[119mm] text-[5pt] text-gray-600">
+          Tracking Number
+        </div>
+        <div className="absolute top-[234.5mm] left-[121mm] text-[8pt] font-semibold">
+          {application.id}
+        </div>
+
+        {/* OCR Lines - Machine Readable Text */}
+        <div className="absolute top-[246mm] left-[48mm] text-[10.49pt] font-mono tracking-wider ocr-text">
+          {generateOCR1(application)}
+        </div>
+        <div className="absolute top-[252mm] left-[48mm] text-[10.49pt] font-mono tracking-wider ocr-text">
+          {generateOCR2(application)}
+        </div>
+
+        {/* Photograph */}
+        {application.image && (
+          <div className="absolute top-[202mm] left-[48mm] w-[30mm] h-[38.4mm] border border-gray-400">
+            <img 
+              src={`data:image/jpeg;base64,${application.image}`}
+              alt="Citizen Photograph" 
+              className="w-full h-full object-cover"
+            />
           </div>
         )}
-      </div>
 
-      {/* Blacklist Check Flag - Highlighted Section */}
-      {application.blacklistCheckPassed !== undefined && (
-        <div className="mb-8">
-          <div className={`p-4 rounded-lg border-2 ${
-            application.blacklistCheckPassed 
-              ? 'bg-green-50 border-green-300' 
-              : 'bg-red-50 border-red-300'
-          }`}>
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-full ${
-                application.blacklistCheckPassed 
-                  ? 'bg-green-100 text-green-600' 
-                  : 'bg-red-100 text-red-600'
-              }`}>
-                {application.blacklistCheckPassed ? (
-                  <span className="text-lg">✅</span>
-                ) : (
-                  <span className="text-lg">❌</span>
-                )}
-              </div>
-              <div>
-                <h4 className={`font-semibold text-lg ${
-                  application.blacklistCheckPassed 
-                    ? 'text-green-800' 
-                    : 'text-red-800'
-                }`}>
-                  Blacklist Check Status
-                </h4>
-                <p className={`text-sm ${
-                  application.blacklistCheckPassed 
-                    ? 'text-green-700' 
-                    : 'text-red-700'
-                }`}>
-                  {application.blacklistCheckPassed 
-                    ? 'Passed - No blacklist issues found' 
-                    : 'Failed - Blacklist issues detected (Application still approved)'
-                  }
-                </p>
-              </div>
+        {/* Additional Information Box */}
+        <div className="absolute top-[260mm] left-[87mm] w-[150mm] h-[20mm] border border-gray-400 p-2">
+          <div className="text-[6pt] text-gray-600 mb-1">Additional Information:</div>
+          <div className="text-[7pt] text-gray-800">
+            <div>Profession: {application.profession}</div>
+            <div>Address: {application.pakistanAddress}, {application.pakistanCity}</div>
+            <div>Transport Mode: {application.transportMode}</div>
+            <div>Departure Date: {formatDate(application.departureDate)}</div>
+          </div>
+        </div>
+
+        {/* Security Features */}
+        <div className="absolute top-[285mm] left-[87mm] w-[150mm] h-[15mm] border border-gray-400 p-2">
+          <div className="text-[6pt] text-gray-600 mb-1">Security Features:</div>
+          <div className="text-[7pt] text-gray-800">
+            <div>• Holographic Overlay</div>
+            <div>• UV Reactive Ink</div>
+            <div>• Micro-text Security Pattern</div>
+          </div>
+        </div>
+
+        {/* Status Indicator */}
+        {application.status === "APPROVED" && (
+          <div className="absolute top-[305mm] left-[87mm] w-[150mm] h-[8mm] bg-green-100 border border-green-400 p-1">
+            <div className="text-[8pt] font-bold text-green-800 text-center">
+              ✓ APPROVED FOR TRAVEL
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Rejection Reason - Highlighted Section */}
-      {application.status === "REJECTED" && application.rejectionReason && (
-        <div className="mb-8">
-          <div className="p-4 rounded-lg border-2 bg-red-50 border-red-300">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-full bg-red-100 text-red-600 mt-1">
-                <span className="text-lg">❌</span>
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-red-800 mb-2 text-lg">
-                  Application Rejected
-                </h4>
-                <div className="bg-white p-3 rounded border border-red-200">
-                  <p className="text-sm text-gray-600 mb-1">Rejection Reason:</p>
-                  <p className="text-red-800 font-medium">
-                    {application.rejectionReason}
-                  </p>
-                </div>
-              </div>
+        {application.status === "REJECTED" && (
+          <div className="absolute top-[305mm] left-[87mm] w-[150mm] h-[8mm] bg-red-100 border border-red-400 p-1">
+            <div className="text-[8pt] font-bold text-red-800 text-center">
+              ✗ APPLICATION REJECTED
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Footer */}
-      <div className="mt-12 pt-8 border-t-2 border-gray-300">
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-sm text-gray-600">
-              This document is valid for emergency travel purposes only.
-            </p>
-            <p className="text-sm text-gray-600">
-              Issued by: Government of Pakistan - Ministry of Interior
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="border border-gray-400 p-4 min-h-[80px] min-w-[120px]">
-              <p className="text-xs text-gray-500 text-center">Official Seal</p>
+        {/* Blacklist Check Status */}
+        {application.blacklistCheckPassed !== undefined && (
+          <div className="absolute top-[315mm] left-[87mm] w-[150mm] h-[8mm] border border-gray-400 p-1">
+            <div className="text-[7pt] text-gray-800">
+              Blacklist Check: {application.blacklistCheckPassed ? "✓ PASSED" : "✗ FAILED"}
             </div>
           </div>
+        )}
+
+        {/* Footer */}
+        <div className="absolute bottom-[5mm] left-[10mm] right-[10mm] text-center">
+          <div className="text-[6pt] text-gray-600">
+            This document is valid for emergency travel purposes only. Issued by the Government of Pakistan.
+          </div>
+          <div className="text-[5pt] text-gray-500 mt-1">
+            Generated on {formatDate(new Date().toISOString())} | Document ID: {application.id}
+          </div>
         </div>
-        <div className="mt-4 text-center">
-          <p className="text-xs text-gray-500">
-            Document generated on {formatDate(new Date().toISOString())}
-          </p>
+
+        {/* Official Seal Placeholder */}
+        <div className="absolute bottom-[15mm] right-[15mm] w-[20mm] h-[20mm] border-2 border-gray-400 border-dashed rounded-full flex items-center justify-center">
+          <div className="text-[5pt] text-gray-500 text-center">
+            OFFICIAL<br />SEAL
+          </div>
         </div>
+
+        {/* Security Pattern Overlay */}
+        <div className="absolute inset-0 pointer-events-none opacity-5">
+          <div className="w-full h-full" style={{
+            backgroundImage: `repeating-linear-gradient(
+              45deg,
+              transparent,
+              transparent 2px,
+              rgba(0,0,0,0.1) 2px,
+              rgba(0,0,0,0.1) 4px
+            )`
+          }}></div>
+        </div>
+
       </div>
     </div>
   )

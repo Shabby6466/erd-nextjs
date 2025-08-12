@@ -100,6 +100,33 @@
     @apply bg-red-100 text-red-700;
   }
 
+  /* Print styles for ETD document */
+  @media print {
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    
+    body {
+      -webkit-print-color-adjust: exact;
+      color-adjust: exact;
+    }
+    
+    .print-document {
+      width: 263mm;
+      height: 123mm;
+      margin: 0;
+      padding: 0;
+      background: white;
+    }
+    
+    /* Ensure OCR font is available for printing */
+    .ocr-text {
+      font-family: 'OCR-B 10 BT', 'Courier New', monospace;
+      letter-spacing: 0.1em;
+    }
+  }
+
   .status-completed {
     @apply bg-purple-100 text-purple-700;
   }
