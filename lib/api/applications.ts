@@ -17,6 +17,7 @@ const transformApplicationData = (apiData: any): Application => {
     birthCountry: apiData.birth_country,
     birthCity: apiData.birth_city,
     profession: apiData.profession,
+    verificationRemarks: apiData.verification_remarks || '',
     pakistanCity: apiData.pakistan_city,
     pakistanAddress: apiData.pakistan_address,
     height: apiData.height,
@@ -226,13 +227,18 @@ export const applicationAPI = {
     approved: boolean,
     black_list_check: boolean,
     rejection_reason?: string
+    etd_issue_date?: string
+    etd_expiry_date?: string
   }): Promise<Application> => {
     console.log('Ministry review with data:', { id, data })
     
     // Create payload with only required fields based on approval status
     const payload: any = {
       approved: data.approved,
-      black_list_check: data.black_list_check
+      black_list_check: data.black_list_check,
+      etd_issue_date: data.etd_issue_date,
+      etd_expiry_date: data.etd_expiry_date,
+      rejection_reason: data.rejection_reason
     }
     
     // Only include rejection_reason for rejections
@@ -300,17 +306,17 @@ export const applicationAPI = {
     // Create FormData for multipart request
     const formData = new FormData()
     
-    // Add each agency as a separate field
+    // Add each agency as a separate field (array format)
     data.agencies.forEach(agency => {
       formData.append('agencies', agency)
     })
     
-    // Add verification document if provided
+    // Add verification document (required field)
     if (data.verification_document) {
       formData.append('verification_document', data.verification_document)
     }
     
-    // Add remarks if provided
+    // Add remarks if provided (optional field)
     if (data.remarks?.trim()) {
       formData.append('remarks', data.remarks.trim())
     }

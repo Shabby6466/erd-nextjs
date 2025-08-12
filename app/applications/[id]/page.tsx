@@ -131,7 +131,12 @@ export default function ApplicationViewPage() {
   }
 
   // New Ministry Review handlers
-  const handleMinistryReviewApprove = async (data: { approved: boolean; black_list_check: boolean }) => {
+  const handleMinistryReviewApprove = async (data: { 
+    approved: boolean; 
+    black_list_check: boolean;
+    etd_issue_date?: string;
+    etd_expiry_date?: string;
+  }) => {
     if (!application) return
     setIsActionLoading(true)
     try {
@@ -139,13 +144,17 @@ export default function ApplicationViewPage() {
       if (application.status === "VERIFICATION_RECEIVED") {
         await applicationAPI.updateStatus(application.id, {
           status: "APPROVED",
-          ...(data.black_list_check && { black_list_check: true })
+          ...(data.black_list_check && { black_list_check: true }),
+          ...(data.etd_issue_date && { etd_issue_date: data.etd_issue_date }),
+          ...(data.etd_expiry_date && { etd_expiry_date: data.etd_expiry_date })
         })
       } else {
         // For other statuses, use ministryReview
         await applicationAPI.ministryReview(application.id, {
           approved: true,
-          black_list_check: data.black_list_check
+          black_list_check: data.black_list_check,
+          etd_issue_date: data.etd_issue_date,
+          etd_expiry_date: data.etd_expiry_date
         })
       }
       showNotification.success("Application approved successfully")
@@ -159,7 +168,13 @@ export default function ApplicationViewPage() {
     }
   }
 
-  const handleMinistryReviewReject = async (data: { approved: boolean; black_list_check: boolean; rejection_reason: string }) => {
+  const handleMinistryReviewReject = async (data: { 
+    approved: boolean; 
+    black_list_check: boolean; 
+    rejection_reason: string;
+    etd_issue_date?: string;
+    etd_expiry_date?: string;
+  }) => {
     if (!application) return
     setIsActionLoading(true)
     try {
@@ -168,14 +183,16 @@ export default function ApplicationViewPage() {
         await applicationAPI.updateStatus(application.id, {
           status: "REJECTED",
           rejection_reason: data.rejection_reason,
-          ...(data.black_list_check && { black_list_check: true })
+          black_list_check: false
         })
       } else {
         // For other statuses, use ministryReview
         await applicationAPI.ministryReview(application.id, {
           approved: false,
-          black_list_check: data.black_list_check,
-          rejection_reason: data.rejection_reason
+          black_list_check: false,
+          rejection_reason: data.rejection_reason,
+          etd_issue_date: undefined,
+          etd_expiry_date: undefined
         })
       }
       showNotification.success("Application rejected")
@@ -228,13 +245,16 @@ export default function ApplicationViewPage() {
     }
   }
 
-  const handleMinistryApprove = async () => {
+  const handleMinistryApprove = async (data: { black_list_check?: boolean, etd_issue_date?: string, etd_expiry_date?: string }) => {
     if (!application) return
     setIsActionLoading(true)
     try {
       // Use status update API for all approvals
-      await applicationAPI.updateStatus(application.id, {
-        status: "APPROVED"
+      await applicationAPI.ministryReview(application.id, {
+        approved: true,
+        black_list_check: data.black_list_check || false,
+        etd_issue_date: data.etd_issue_date || '',
+        etd_expiry_date: data.etd_expiry_date || ''
       })
       showNotification.success("Application approved")
       await refresh()
@@ -254,13 +274,18 @@ export default function ApplicationViewPage() {
     try {
       // Use new status update API for VERIFICATION_RECEIVED status
       if (application.status === "VERIFICATION_RECEIVED") {
-        await applicationAPI.updateStatus(application.id, {
-          status: "REJECTED",
+        await applicationAPI.ministryReview(application.id, {
+          approved: false,
+          black_list_check: true,
           rejection_reason: rejectionReason
         })
       } else {
         // Use legacy API for other statuses
-        await applicationAPI.ministryReject(application.id, rejectionReason)
+        await applicationAPI.ministryReview(application.id, {
+          approved: false,
+          black_list_check: true,
+          rejection_reason: rejectionReason
+        })
       }
       showNotification.success("Application rejected")
       await refresh()
@@ -271,21 +296,25 @@ export default function ApplicationViewPage() {
     }
   }
 
-  const handleBlacklist = async () => {
-    if (!application) return
-    const remarks = window.prompt("Enter blacklist reason:")
-    if (!remarks) return
-    setIsActionLoading(true)
-    try {
-      await applicationAPI.blacklist(application.id, remarks)
-      showNotification.success("Application blacklisted")
-      await refresh()
-    } catch {
-      showNotification.error("Failed to blacklist application")
-    } finally {
-      setIsActionLoading(false)
-    }
-  }
+  // const handleBlacklist = async () => {
+  //   if (!application) return
+  //   const remarks = window.prompt("Enter blacklist reason:")
+  //   if (!remarks) return
+  //   setIsActionLoading(true)
+  //   try {
+  //     await applicationAPI.ministryReview(application.id, {
+  //       approved: false,
+  //       black_list_check: true,
+  //       rejection_reason: remarks
+  //     })
+  //     showNotification.success("Application blacklisted")
+  //     await refresh()
+  //   } catch {
+  //     showNotification.error("Failed to blacklist application")
+  //   } finally {
+  //     setIsActionLoading(false)
+  //   }
+  // }
 
   const handleSendToAgency = async () => {
     if (!application) return
@@ -476,7 +505,7 @@ export default function ApplicationViewPage() {
                                 }}
                               />
                               <div className="hidden w-32 h-40 bg-blue-50 border-2 border-blue-300 rounded flex items-center justify-center">
-                                <span className="text-blue-600 text-sm text-center">NADRA Photo<br/>Not Available</span>
+                                <span className="text-blue-600 text-sm text-center">NADRA Photo<br />Not Available</span>
                               </div>
                             </div>
                             <span className="text-sm text-blue-600 mt-2">NADRA Photo</span>
@@ -497,7 +526,7 @@ export default function ApplicationViewPage() {
                                 }}
                               />
                               <div className="hidden w-32 h-40 bg-green-50 border-2 border-green-300 rounded flex items-center justify-center">
-                                <span className="text-green-600 text-sm text-center">Passport Photo<br/>Not Available</span>
+                                <span className="text-green-600 text-sm text-center">Passport Photo<br />Not Available</span>
                               </div>
                             </div>
                             <span className="text-sm text-green-600 mt-2">Passport Photo</span>
@@ -597,7 +626,7 @@ export default function ApplicationViewPage() {
               </Section>
             </div>
 
-                        {/* Travel & Request */}
+            {/* Travel & Request */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8 auto-rows-fr items-stretch">
               <Section title="Travel Information" className="h-full">
                 <GridItem label="Departure Date" value={formatDate(application.departureDate)} />
@@ -612,7 +641,7 @@ export default function ApplicationViewPage() {
               </Section>
             </div>
 
-                        {/* Status & Security */}
+            {/* Status & Security */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8 auto-rows-fr items-stretch">
               <Section title="Application Status & Audit" className="h-full">
                 <GridItem label="Status" value={formatStatus(application.status)} />
@@ -631,8 +660,8 @@ export default function ApplicationViewPage() {
 
               {application.reviewedBy && (
                 <Section title="Security & Verification" className="h-full">
-                  <GridItem 
-                    label="FIA Blacklist Status" 
+                  <GridItem
+                    label="FIA Blacklist Status"
                     value={
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${application.isFiaBlacklist ? 'bg-red-500' : 'bg-green-500'}`}></div>
@@ -641,12 +670,12 @@ export default function ApplicationViewPage() {
                     }
                   />
                   {application.blacklistCheckPassed !== undefined && (
-                    <GridItem 
-                      label="Blacklist Check" 
+                    <GridItem
+                      label="Blacklist Check"
                       value={
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${application.blacklistCheckPassed ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                          <span>{application.blacklistCheckPassed ? "Passed" : "Failed (Still Approved)"}</span>
+                          <span>{!application.blacklistCheckPassed ? "Passed" : "Failed (Still Approved)"}</span>
                         </div>
                       }
                     />
@@ -676,7 +705,7 @@ export default function ApplicationViewPage() {
                         value={
                           <div className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full ${application.blacklistCheckPassed ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                            <span>{application.blacklistCheckPassed ? "Passed" : "Failed (Still Approved)"}</span>
+                            <span>{!application.blacklistCheckPassed ? "Passed" : "Failed (Still Approved)"}</span>
                           </div>
                         }
                       />
@@ -689,94 +718,7 @@ export default function ApplicationViewPage() {
               </div>
             )}
 
-            {/* Agency Verification Remarks - Only visible to Ministry and Admin */}
-            {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_RECEIVED" && application.agencyRemarks && application.agencyRemarks.length > 0 && (
-              <div className="mt-8">
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200 p-6">
-                  <h3 className="text-xl font-semibold mb-6 text-blue-800 flex items-center gap-2">
-                    <Eye className="h-5 w-5" />
-                    Agency Verification Results
-                  </h3>
-                  <div className="space-y-6">
-                    {application.agencyRemarks.map((remark: any, index: number) => (
-                      <div key={index} className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                            <h4 className="font-semibold text-gray-800">{remark.agency || 'Unknown Agency'}</h4>
-                          </div>
-                          <Badge variant="outline" className="text-xs">
-                            {remark.submittedAt ? formatDateTime(remark.submittedAt) : 'N/A'}
-                          </Badge>
-                        </div>
 
-                        <div className="mb-4">
-                          <div className="text-sm text-gray-600 mb-2">Verification Remarks:</div>
-                          <div className="bg-gray-50 rounded-lg p-3 text-gray-800">
-                            {remark.remarks || 'No remarks provided'}
-                          </div>
-                        </div>
-
-                        {remark.attachmentUrl && (
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <FileText className="h-5 w-5 text-blue-600" />
-                                <div>
-                                  <div className="font-medium text-blue-900">Verification Document</div>
-                                  <div className="text-sm text-blue-700">PDF attachment from {remark.agency}</div>
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <PDFLink
-                                  url=""
-                                  fileName={`verification-${remark.agency}-${remark.submittedAt}.pdf`}
-                                  className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
-                                  applicationId={params.id as string}
-                                  agency={remark.agency}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  View
-                                </PDFLink>
-                                <span className="text-gray-400">|</span>
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      const blob = await applicationAPI.downloadVerificationAttachment(
-                                        params.id as string,
-                                        remark.agency
-                                      )
-                                      const downloadUrl = URL.createObjectURL(blob)
-
-                                      const link = document.createElement('a')
-                                      link.href = downloadUrl
-                                      link.download = `verification-${remark.agency}-${remark.submittedAt}.pdf`
-                                      document.body.appendChild(link)
-                                      link.click()
-                                      document.body.removeChild(link)
-
-                                      // Clean up the blob URL
-                                      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000)
-                                    } catch (error) {
-                                      console.error('Download failed:', error)
-                                      showNotification.error('Failed to download file')
-                                    }
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
-                                >
-                                  <Download className="h-4 w-4" />
-                                  Download
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -839,40 +781,218 @@ export default function ApplicationViewPage() {
               <CardTitle>Verification Document</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <FileText className="h-8 w-8 text-blue-600" />
-                  <div>
-                    <h4 className="font-medium text-blue-900">PDF Attachment</h4>
-                    <p className="text-sm text-blue-700">Verification document from Ministry</p>
+              <div className="space-y-4">
+                {/* Ministry Verification Document */}
+                <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-8 w-8 text-blue-600" />
+                    <div>
+                      {/* <h4 className="font-medium text-blue-900">Ministry Verification Document</h4> */}
+                      {/* <p className="text-sm text-blue-700">Official document issued by the Ministry</p> */}
+                      <div className="bg-white border-l-4 border-blue-400 p-3 rounded-r-lg mt-2">
+                        <div className="flex items-start gap-2">
+                          {/* <div className="w-2 h-2 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div> */}
+                          <div className="flex-1">
+                            <p className="text-sm text-blue-800 font-medium mb-1">Verification Remarks</p>
+                            <p className="text-sm text-blue-700 leading-relaxed">
+                              {application.verificationRemarks || 'No remarks provided.'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        const blob = await applicationAPI.downloadVerificationDocument(application.id)
+                        const url = URL.createObjectURL(blob)
+
+                        const link = document.createElement('a')
+                        link.href = url
+                        link.download = `verification-document-${application.id.substring(0, 8)}.pdf`
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+
+                        setTimeout(() => URL.revokeObjectURL(url), 1000)
+                      } catch (error) {
+                        console.error('Download failed:', error)
+                        showNotification.error('Failed to download document')
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
                 </div>
-                <Button
-                  onClick={async () => {
-                    try {
-                      const blob = await applicationAPI.downloadVerificationDocument(application.id)
-                      const url = URL.createObjectURL(blob)
 
-                      const link = document.createElement('a')
-                      link.href = url
-                      link.download = `verification-document-${application.id.substring(0, 8)}.pdf`
-                      document.body.appendChild(link)
-                      link.click()
-                      document.body.removeChild(link)
+                {/* Agency Verification Remarks */}
+                {application.agencyRemarks && application.agencyRemarks.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-medium text-gray-900 mb-4">Verification Remarks</h4>
+                    <div className="space-y-4">
+                      {application.agencyRemarks.map((remark: any, index: number) => (
+                        <div key={index} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                              <span className="font-medium text-gray-800">{remark.agency || 'Unknown Agency'}</span>
+                            </div>
+                            <span className="text-sm text-gray-500">
+                              {remark.submittedAt ? formatDateTime(remark.submittedAt) : 'N/A'}
+                            </span>
+                          </div>
 
-                      setTimeout(() => URL.revokeObjectURL(url), 1000)
-                    } catch (error) {
-                      console.error('Download failed:', error)
-                      showNotification.error('Failed to download document')
-                    }
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Download
-                </Button>
+                          <div className="mb-3">
+                            <div className="text-sm text-gray-600 mb-2">Remarks:</div>
+                            <div className="bg-white rounded-lg p-3 text-gray-800 border border-gray-200">
+                              {remark.remarks || 'No remarks provided'}
+                            </div>
+                          </div>
+
+                          {remark.attachmentUrl && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="h-4 w-4 text-blue-600" />
+                                  <span className="text-sm font-medium text-blue-900">Agency Attachment</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <PDFLink
+                                    url=""
+                                    fileName={`verification-${remark.agency}-${remark.submittedAt}.pdf`}
+                                    className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"
+                                    applicationId={params.id as string}
+                                    agency={remark.agency}
+                                  >
+                                    <Eye className="h-3 w-3" />
+                                    View
+                                  </PDFLink>
+                                  <span className="text-gray-400">|</span>
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const blob = await applicationAPI.downloadVerificationAttachment(
+                                          params.id as string,
+                                          remark.agency
+                                        )
+                                        const downloadUrl = URL.createObjectURL(blob)
+
+                                        const link = document.createElement('a')
+                                        link.href = downloadUrl
+                                        link.download = `verification-${remark.agency}-${remark.submittedAt}.pdf`
+                                        document.body.appendChild(link)
+                                        link.click()
+                                        document.body.removeChild(link)
+
+                                        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000)
+                                      } catch (error) {
+                                        console.error('Download failed:', error)
+                                        showNotification.error('Failed to download file')
+                                      }
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"
+                                  >
+                                    <Download className="h-3 w-3" />
+                                    Download
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Agency Verification Responses - For Ministry and Admin Users */}
+        {(role === "MINISTRY" || role === "ADMIN") && application.agencyRemarks && application.agencyRemarks.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Agency Verification Responses</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {application.agencyRemarks.map((remark: any, index: number) => (
+                  <div key={index} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span className="font-medium text-gray-800">{remark.agency || 'Unknown Agency'}</span>
+                      </div>
+                      <span className="text-sm text-gray-500">
+                        {remark.submittedAt ? formatDateTime(remark.submittedAt) : 'N/A'}
+                      </span>
+                    </div>
+
+                    <div className="mb-3">
+                      <div className="text-sm text-gray-600 mb-2">Verification Remarks:</div>
+                      <div className="bg-white rounded-lg p-3 text-gray-800 border border-gray-200">
+                        {remark.remarks || 'No remarks provided'}
+                      </div>
+                    </div>
+
+                    {remark.attachmentUrl && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-blue-600" />
+                            <span className="text-sm font-medium text-blue-900">Agency Attachment</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <PDFLink
+                              url=""
+                              fileName={`verification-${remark.agency}-${remark.submittedAt}.pdf`}
+                              className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"
+                              applicationId={params.id as string}
+                              agency={remark.agency}
+                            >
+                              <Eye className="h-3 w-3" />
+                              View
+                            </PDFLink>
+                            <span className="text-gray-400">|</span>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const blob = await applicationAPI.downloadVerificationAttachment(
+                                    params.id as string,
+                                    remark.agency
+                                  )
+                                  const downloadUrl = URL.createObjectURL(blob)
+
+                                  const link = document.createElement('a')
+                                  link.href = downloadUrl
+                                  link.download = `verification-${remark.agency}-${remark.submittedAt}.pdf`
+                                  document.body.appendChild(link)
+                                  link.click()
+                                  document.body.removeChild(link)
+
+                                  setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000)
+                                } catch (error) {
+                                  console.error('Download failed:', error)
+                                  showNotification.error('Failed to download file')
+                                }
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"
+                            >
+                              <Download className="h-3 w-3" />
+                              Download
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -923,11 +1043,12 @@ export default function ApplicationViewPage() {
                 {/* Ministry Actions for VERIFICATION_SUBMITTED Applications */}
                 {(role === "MINISTRY" || role === "ADMIN") && application.status === "VERIFICATION_SUBMITTED" && (
                   <>
-                    <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
-                      <CheckCircle className="mr-2 h-4 w-4" /> Approve
-                    </Button>
-                    <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
-                      <XCircle className="mr-2 h-4 w-4" /> Reject
+                    <Button 
+                      onClick={() => setShowMinistryReviewModal(true)} 
+                      disabled={isActionLoading}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" /> Review Application
                     </Button>
                   </>
                 )}
@@ -954,14 +1075,12 @@ export default function ApplicationViewPage() {
                 {(role === "MINISTRY" || role === "ADMIN") &&
                   ["SUBMITTED", "UNDER_REVIEW", "AGENCY_REVIEW", "MINISTRY_REVIEW"].includes(application.status) && (
                     <>
-                      <Button onClick={handleMinistryApprove} disabled={isActionLoading}>
-                        <CheckCircle className="mr-2 h-4 w-4" /> Approve
-                      </Button>
-                      <Button onClick={handleMinistryReject} variant="destructive" disabled={isActionLoading}>
-                        <XCircle className="mr-2 h-4 w-4" /> Reject
-                      </Button>
-                      <Button onClick={handleBlacklist} variant="destructive" disabled={isActionLoading}>
-                        <AlertTriangle className="mr-2 h-4 w-4" /> Blacklist
+                      <Button 
+                        onClick={() => setShowMinistryReviewModal(true)} 
+                        disabled={isActionLoading}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" /> Review Application
                       </Button>
                       <Button onClick={handleSendToAgency} variant="secondary" disabled={isActionLoading}>
                         <Send className="mr-2 h-4 w-4" /> Send to Agency

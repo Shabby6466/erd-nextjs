@@ -9,8 +9,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 interface MinistryReviewModalProps {
   isOpen: boolean
   onClose: () => void
-  onApprove: (data: { approved: boolean; black_list_check: boolean }) => Promise<void>
-  onReject: (data: { approved: boolean; black_list_check: boolean; rejection_reason: string }) => Promise<void>
+  onApprove: (data: { 
+    approved: boolean; 
+    black_list_check: boolean;
+    etd_issue_date?: string;
+    etd_expiry_date?: string;
+  }) => Promise<void>
+  onReject: (data: { 
+    approved: boolean; 
+    black_list_check: boolean; 
+    rejection_reason: string;
+    etd_issue_date?: string;
+    etd_expiry_date?: string;
+  }) => Promise<void>
   isLoading: boolean
 }
 
@@ -23,6 +34,8 @@ export function MinistryReviewModal({
 }: MinistryReviewModalProps) {
   const [blackListCheck, setBlackListCheck] = useState(false)
   const [rejectionReason, setRejectionReason] = useState("")
+  const [etdIssueDate, setEtdIssueDate] = useState("")
+  const [etdExpiryDate, setEtdExpiryDate] = useState("")
   const [reviewType, setReviewType] = useState<"approve" | "reject" | null>(null)
   const [actionMode, setActionMode] = useState<"selection" | "approve" | "reject">("selection")
 
@@ -33,7 +46,9 @@ export function MinistryReviewModal({
     try {
       await onApprove({
         approved: true,
-        black_list_check: blackListCheck
+        black_list_check: blackListCheck,
+        etd_issue_date: etdIssueDate || undefined,
+        etd_expiry_date: etdExpiryDate || undefined
       })
       resetForm()
       onClose()
@@ -54,8 +69,10 @@ export function MinistryReviewModal({
     try {
       await onReject({
         approved: false,
-        black_list_check: blackListCheck,
-        rejection_reason: rejectionReason.trim()
+        black_list_check: false,
+        rejection_reason: rejectionReason.trim(),
+        etd_issue_date: undefined,
+        etd_expiry_date: undefined
       })
       resetForm()
       onClose()
@@ -69,6 +86,8 @@ export function MinistryReviewModal({
   const resetForm = () => {
     setBlackListCheck(false)
     setRejectionReason("")
+    setEtdIssueDate("")
+    setEtdExpiryDate("")
     setReviewType(null)
     setActionMode("selection")
   }
@@ -155,10 +174,38 @@ export function MinistryReviewModal({
                         Application will be approved
                       </p>
                       <p className="text-sm text-green-700">
-                        ETD dates will be automatically generated
+                        ETD will be issued with the specified dates
                       </p>
                     </div>
                   </div>
+                </div>
+
+                {/* ETD Issue Date */}
+                <div className="space-y-2">
+                  <Label htmlFor="etd-issue-date">
+                    ETD Issue Date
+                  </Label>
+                  <Input
+                    id="etd-issue-date"
+                    type="date"
+                    value={etdIssueDate}
+                    onChange={(e) => setEtdIssueDate(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+
+                {/* ETD Expiry Date */}
+                <div className="space-y-2">
+                  <Label htmlFor="etd-expiry-date">
+                    ETD Expiry Date
+                  </Label>
+                  <Input
+                    id="etd-expiry-date"
+                    type="date"
+                    value={etdExpiryDate}
+                    onChange={(e) => setEtdExpiryDate(e.target.value)}
+                    className="w-full"
+                  />
                 </div>
 
                 {/* Blacklist Check for Approval */}
@@ -214,20 +261,6 @@ export function MinistryReviewModal({
                       </p>
                     </div>
                   </div>
-                </div>
-
-                {/* Blacklist Check for Rejection */}
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="blacklist-check-reject"
-                    checked={blackListCheck}
-                    onChange={(e) => setBlackListCheck(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <Label htmlFor="blacklist-check-reject" className="text-sm font-medium">
-                    Mark as blacklisted
-                  </Label>
                 </div>
 
                 {/* Rejection Reason */}

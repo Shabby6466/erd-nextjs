@@ -65,6 +65,7 @@ export interface Application {
   pendingVerificationAgencies?: string[]
   verificationCompletedAgencies?: string[]
   agencyRemarks?: any[]
+  verificationRemarks?: any[]
   rejectionReason?: string
   verificationSentAt?: string
   verificationCompletedAt?: string
