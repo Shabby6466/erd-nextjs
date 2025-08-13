@@ -45,7 +45,7 @@ export default function PrintApplicationPage() {
   const generateOCR1 = (application: Application) => {
     const surname = application.lastName?.toUpperCase() || ""
     const givenNames = application.firstName?.toUpperCase() || ""
-    return `P<PAK${surname}<<${givenNames}<<<<<<<<<<<<<<<<<<<<<<<<<<`
+    return `P<PAK${surname}<<${givenNames}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<`
   }
 
   const generateOCR2 = (application: Application) => {
@@ -80,7 +80,7 @@ export default function PrintApplicationPage() {
   }
 
   return (
-    <div className="max-w-[263mm] mx-auto bg-white min-h-[123mm] print:p-0 print:m-0 print:max-w-none print:min-h-screen">
+    <div className="max-w-[491.34px] mx-auto overflow-hidden bg-white print:p-0 print:m-0 print:max-w-none">
       {/* Print Controls - Hidden during print */}
       <div className="print:hidden mb-4 text-center">
         <button
@@ -95,206 +95,144 @@ export default function PrintApplicationPage() {
       </div>
 
       {/* Watermarks for official document appearance */}
-      <DGIPWatermarks 
-        leftOpacity={0.05} 
-        rightOpacity={0.03} 
-        layerZ={1}
-      />
+    
       
-      {/* Document Container - Following NPF.ini dimensions */}
-      <div className="relative w-[263mm] h-[123mm] bg-white border border-gray-300 print:border-0 print-document">
+      {/* Document Container - Following exact dimensions from image */}
+      <div className="absolute bottom-0 w-[500.34px] h-[1020px]  print:border-0 print-document">
         
-        {/* Header - Islamic Republic of Pakistan */}
-        <div className="absolute top-[7.8mm] left-[7.8mm] text-[6pt] font-bold text-gray-800">
-          ISLAMIC REPUBLIC OF
-        </div>
-        <div className="absolute top-[9.1mm] left-[6.4mm] text-[14pt] font-bold text-gray-800">
-          PAKISTAN
-        </div>
-        <div className="absolute top-[15mm] left-[12mm] text-[14pt] font-bold text-gray-800">
-          EMERGENCY TRAVEL DOCUMENT
+        {/* TOP SECTION (1st half) - Blank header area */}
+        <div className="absolute top-0 left-0 w-full h-[340px]  ">
+          {/* Top border */}
+          <div className="absolute top-0 left-0 w-full h-[1px] "></div>
+          {/* Right border */}
+          <div className="absolute top-0 right-0 w-[1px] h-full"></div>
         </div>
 
-        {/* Document Type and Country Code */}
-        <div className="absolute top-[190mm] left-[87mm] text-[5pt] text-gray-600">
-          Type
-        </div>
-        <div className="absolute top-[192.5mm] left-[89mm] text-[8pt] font-semibold">
-          P
-        </div>
-
-        <div className="absolute top-[190mm] left-[98mm] text-[5pt] text-gray-600">
-          Country Code
-        </div>
-        <div className="absolute top-[192.5mm] left-[100mm] text-[8pt] font-semibold">
-          PAK
-        </div>
-
-        {/* Document Number */}
-        <div className="absolute top-[190mm] left-[119mm] text-[5pt] text-gray-600">
-          Document No
-        </div>
-        <div className="absolute top-[192.5mm] left-[121mm] text-[8pt] font-semibold">
-          {application.id}
-        </div>
-
-        {/* Personal Information */}
-        <div className="absolute top-[196.5mm] left-[87mm] text-[5pt] text-gray-600">
-          Surname
-        </div>
-        <div className="absolute top-[198.5mm] left-[89mm] text-[8pt] font-semibold">
-          {application.lastName?.toUpperCase()}
-        </div>
-
-        <div className="absolute top-[202.5mm] left-[87mm] text-[5pt] text-gray-600">
-          Given Names
-        </div>
-        <div className="absolute top-[204.5mm] left-[89mm] text-[8pt] font-semibold">
-          {application.firstName?.toUpperCase()}
-        </div>
-
-        <div className="absolute top-[208.5mm] left-[87mm] text-[5pt] text-gray-600">
-          Nationality
-        </div>
-        <div className="absolute top-[210.5mm] left-[89mm] text-[8pt] font-semibold">
-          PAKISTANI
-        </div>
-
-        <div className="absolute top-[214.5mm] left-[87mm] text-[5pt] text-gray-600">
-          Date of birth
-        </div>
-        <div className="absolute top-[216.5mm] left-[89mm] text-[8pt] font-semibold">
-          {formatDate(application.dateOfBirth)}
-        </div>
-
-        <div className="absolute top-[220.5mm] left-[87mm] text-[5pt] text-gray-600">
-          Sex
-        </div>
-        <div className="absolute top-[222.5mm] left-[89mm] text-[8pt] font-semibold">
-          {application.gender?.toUpperCase() === "MALE" ? "M" : "F"}
-        </div>
-
-        <div className="absolute top-[226.5mm] left-[87mm] text-[5pt] text-gray-600">
-          Date of Issue
-        </div>
-        <div className="absolute top-[228.5mm] left-[89mm] text-[8pt] font-semibold">
-          {application.etdIssueDate ? formatDate(application.etdIssueDate) : formatDate(application.updatedAt)}
-        </div>
-
-        <div className="absolute top-[232.5mm] left-[87mm] text-[5pt] text-gray-600">
-          Date of Expiry
-        </div>
-        <div className="absolute top-[234.5mm] left-[89mm] text-[8pt] font-semibold">
-          {application.etdExpiryDate ? formatDate(application.etdExpiryDate) : "6 MONTHS FROM ISSUE"}
-        </div>
-
-        {/* Right Column Information */}
-        <div className="absolute top-[220.5mm] left-[119mm] text-[5pt] text-gray-600">
-          Citizen Number
-        </div>
-        <div className="absolute top-[222.5mm] left-[121mm] text-[8pt] font-semibold">
-          {application.citizenId}
-        </div>
-
-        <div className="absolute top-[226.5mm] left-[119mm] text-[5pt] text-gray-600">
-          Issuing Authority
-        </div>
-        <div className="absolute top-[228.5mm] left-[121mm] text-[8pt] font-semibold">
-          PAKISTAN
-        </div>
-
-        <div className="absolute top-[232.5mm] left-[119mm] text-[5pt] text-gray-600">
-          Tracking Number
-        </div>
-        <div className="absolute top-[234.5mm] left-[121mm] text-[8pt] font-semibold">
-          {application.id}
-        </div>
-
-        {/* OCR Lines - Machine Readable Text */}
-        <div className="absolute top-[246mm] left-[48mm] text-[10.49pt] font-mono tracking-wider ocr-text">
-          {generateOCR1(application)}
-        </div>
-        <div className="absolute top-[252mm] left-[48mm] text-[10.49pt] font-mono tracking-wider ocr-text">
-          {generateOCR2(application)}
-        </div>
-
-        {/* Photograph */}
-        {application.image && (
-          <div className="absolute top-[202mm] left-[48mm] w-[30mm] h-[38.4mm] border border-gray-400">
-            <img 
-              src={`data:image/jpeg;base64,${application.image}`}
-              alt="Citizen Photograph" 
-              className="w-full h-full object-cover"
-            />
+        {/* MIDDLE SECTION (2nd half) - Remarks area with rotated text */}
+        {/* <div className="absolute top-[340px] left-0 w-full h-[340px] "> */}
+          {/* Rotated text on the left side */}
+          {/* <div className="absolute left-[30px] top-[50px] transform -rotate-90 origin-top-left">
+            <div className="text-[14px] font-semibold text-black-800 mb-2">ETD No.</div>
+            <div className="text-[14px] font-semibold text-black-800 mb-2">OFFICIAL OBSERVATIONS</div>
+            <div className="text-[14px] font-semibold text-black-800 mb-2">Reasons for issuance of ETD</div>
+            <div className="text-[14px] font-semibold text-black-800 ml-4">Remarks</div>
           </div>
-        )}
+        </div> */}
 
-        {/* Additional Information Box */}
-        <div className="absolute top-[260mm] left-[87mm] w-[150mm] h-[20mm] border border-gray-400 p-2">
-          <div className="text-[6pt] text-gray-600 mb-1">Additional Information:</div>
-          <div className="text-[7pt] text-gray-800">
-            <div>Profession: {application.profession}</div>
-            <div>Address: {application.pakistanAddress}, {application.pakistanCity}</div>
-            <div>Transport Mode: {application.transportMode}</div>
-            <div>Departure Date: {formatDate(application.departureDate)}</div>
-          </div>
-        </div>
+        {/* BOTTOM SECTION (3rd half) - ETD document */}
+        <div className="absolute bottom-0 left-0 w-full h-[340px]">
+          {/* White document area within gray frame */}
+        
+            
+            {/* Left side - Photograph */}
+            {application.image && (
+              <div className="absolute left-[45px] bottom-[195px] w-[120px] h-[150px] border border-gray-400">
+                <img 
+                  src={`data:image/jpeg;base64,${application.image}`}
+                  alt="Citizen Photograph" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
 
-        {/* Security Features */}
-        <div className="absolute top-[285mm] left-[87mm] w-[150mm] h-[15mm] border border-gray-400 p-2">
-          <div className="text-[6pt] text-gray-600 mb-1">Security Features:</div>
-          <div className="text-[7pt] text-gray-800">
-            <div>• Holographic Overlay</div>
-            <div>• UV Reactive Ink</div>
-            <div>• Micro-text Security Pattern</div>
-          </div>
-        </div>
+            {/* Right side - Document information */}
+            <div className="absolute  left-[185px] bottom-[188px] right-[120px]">
+              
+              {/* Top row - Type, Country Code, Document No */}
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Type
+                 <br />
+                  <span className="text-[10px] font-semibold">P</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Country Code<br />
+                  <span className="text-[10px] font-semibold">PAK</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Document No.<br/>
+                  <span className="text-[10px] font-semibold">{application.id}</span>
+                  </span>
+                </div>
+              </div>
 
-        {/* Status Indicator */}
-        {application.status === "APPROVED" && (
-          <div className="absolute top-[305mm] left-[87mm] w-[150mm] h-[8mm] bg-green-100 border border-green-400 p-1">
-            <div className="text-[8pt] font-bold text-green-800 text-center">
-              ✓ APPROVED FOR TRAVEL
+              {/* Personal Information - Left column */}
+              <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Surname<br/>
+                  <span className="text-[10px] font-semibold">{application.lastName?.toUpperCase()}</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Citizen Number<br/>
+                  <span className="text-[10px] font-semibold">{application.citizenId}</span>
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Given Names<br/>
+                  <span className="text-[10px] font-semibold">{application.firstName?.toUpperCase()}</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Issuing Authority<br/>
+                  <span className="text-[10px] font-semibold">PAKISTAN</span>
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Nationality<br/>
+                  <span className="text-[10px] font-semibold">PAKISTANI</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Tracking Number<br/>
+                  <span className="text-[10px] font-semibold">{application.id}</span>
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Date of birth<br/>
+                  <span className="text-[10px] font-semibold">{formatDate(application.dateOfBirth)}</span>
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Sex<br/>
+                  <span className="text-[10px] font-semibold">{application.gender?.toUpperCase() === "MALE" ? "M" : "F"}</span>
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Date of issue<br/>
+                  <span className="text-[10px] font-semibold">{application.etdIssueDate ? formatDate(application.etdIssueDate) : formatDate(application.updatedAt)}</span>
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500">Date of expiry<br/>
+                  <span className="text-[10px] font-semibold">{application.etdExpiryDate ? formatDate(application.etdExpiryDate) : "6 MONTHS FROM ISSUE"}</span>
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
 
-        {application.status === "REJECTED" && (
-          <div className="absolute top-[305mm] left-[87mm] w-[150mm] h-[8mm] bg-red-100 border border-red-400 p-1">
-            <div className="text-[8pt] font-bold text-red-800 text-center">
-              ✗ APPLICATION REJECTED
+            {/* Bottom - Machine Readable Zone (MRZ) */}
+            <div className="absolute bottom-[135px] left-[20px] right-[20px]">
+              <div className="text-[13px] font-mono tracking-wider ocr-text leading-tight">
+                {generateOCR1(application)}
+              </div>
+              <div className="text-[13px] font-mono tracking-wider ocr-text leading-tight">
+                {generateOCR2(application)}
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Blacklist Check Status */}
-        {application.blacklistCheckPassed !== undefined && (
-          <div className="absolute top-[315mm] left-[87mm] w-[150mm] h-[8mm] border border-gray-400 p-1">
-            <div className="text-[7pt] text-gray-800">
-              Blacklist Check: {application.blacklistCheckPassed ? "✓ PASSED" : "✗ FAILED"}
-            </div>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="absolute bottom-[5mm] left-[10mm] right-[10mm] text-center">
-          <div className="text-[6pt] text-gray-600">
-            This document is valid for emergency travel purposes only. Issued by the Government of Pakistan.
-          </div>
-          <div className="text-[5pt] text-gray-500 mt-1">
-            Generated on {formatDate(new Date().toISOString())} | Document ID: {application.id}
-          </div>
-        </div>
-
-        {/* Official Seal Placeholder */}
-        <div className="absolute bottom-[15mm] right-[15mm] w-[20mm] h-[20mm] border-2 border-gray-400 border-dashed rounded-full flex items-center justify-center">
-          <div className="text-[5pt] text-gray-500 text-center">
-            OFFICIAL<br />SEAL
-          </div>
+        
         </div>
 
         {/* Security Pattern Overlay */}
-        <div className="absolute inset-0 pointer-events-none opacity-5">
+        {/* <div className="absolute inset-0 pointer-events-none opacity-5">
           <div className="w-full h-full" style={{
             backgroundImage: `repeating-linear-gradient(
               45deg,
@@ -304,7 +242,7 @@ export default function PrintApplicationPage() {
               rgba(0,0,0,0.1) 4px
             )`
           }}></div>
-        </div>
+        </div> */}
 
       </div>
     </div>
