@@ -26,64 +26,18 @@ export default function AgencyDashboard() {
 
   const fetchApplications = async () => {
     try {
-      // Fetch applications sent for verification by Ministry
-      const response = await applicationAPI.getAll({
-        status: ['PENDING_VERIFICATION', 'VERIFICATION_SUBMITTED']
-      })
-      
-      // Filter by agency assignment and pending verification agencies
-      const filteredApplications = response.data?.filter(app => {
-        // Check if this agency should handle this application
-        let userAgency = user?.agency
-        if (!userAgency) {
-          if (user?.state === 'Punjab') {
-            userAgency = 'SPECIAL_BRANCH_PUNJAB'
-          } else if (user?.state === 'Sindh') {
-            userAgency = 'SPECIAL_BRANCH_SINDH'
-          } else if (user?.state === 'KPK') {
-            userAgency = 'SPECIAL_BRANCH_KPK'
-          } else if (user?.state === 'Balochistan') {
-            userAgency = 'SPECIAL_BRANCH_BALOCHISTAN'
-          } else if (user?.state === 'Federal') {
-            userAgency = 'SPECIAL_BRANCH_FEDERAL'
-          } else {
-            userAgency = 'INTELLIGENCE_BUREAU'
-          }
-        }
-        
-        console.log('Agency filtering:', {
-          userAgency,
-          userState: user?.state,
-          appId: app.id,
-          appStatus: app.status,
-          pendingAgencies: app.pendingVerificationAgencies
-        })
-        
-        // Check if the application is pending verification by this agency
-        if (app.pendingVerificationAgencies && app.pendingVerificationAgencies.length > 0) {
-          return app.pendingVerificationAgencies.includes(userAgency)
-        }
-        
-        // Fallback to legacy filtering (for old applications)
-        if (user?.agency) {
-          return app.assignedAgency === user?.agency
-        }
-        if (user?.state) {
-          return app.region === user?.state
-        }
-        return true
-      }) || []
-      
-      setApplications(filteredApplications)
+      // Use the new dedicated agency applications endpoint
+      const response = await applicationAPI.getAgencyApplications()
+      setApplications(response.data || [])
       
       // Calculate stats
-      const totalApps = filteredApplications.length
-      const pending = filteredApplications.filter(app => 
+      const totalApps = response.data?.length || 0
+      const pending = response.data?.filter(app => 
         app.status === 'PENDING_VERIFICATION'
-      ).length
-      const completed = filteredApplications.filter(app => 
+      ).length || 0
+      const completed = response.data?.filter(app => 
         app.status === 'VERIFICATION_SUBMITTED'
-      ).length
+      ).length || 0
 
       setStats({
         total: totalApps,
@@ -92,7 +46,76 @@ export default function AgencyDashboard() {
         rejected: 0 // Agencies don't reject, they just submit verification
       })
     } catch (error) {
-      showNotification.error("Failed to fetch applications")
+      console.error('Failed to fetch agency applications:', error);
+      // Fallback to old method if new endpoint fails
+      try {
+        const response = await applicationAPI.getAll({
+          status: ['PENDING_VERIFICATION', 'VERIFICATION_SUBMITTED']
+        })
+        
+        // Filter by agency assignment and pending verification agencies
+        const filteredApplications = response.data?.filter(app => {
+          // Check if this agency should handle this application
+          let userAgency = user?.agency
+          if (!userAgency) {
+            if (user?.state === 'Punjab') {
+              userAgency = 'SPECIAL_BRANCH_PUNJAB'
+            } else if (user?.state === 'Sindh') {
+              userAgency = 'SPECIAL_BRANCH_SINDH'
+            } else if (user?.state === 'KPK') {
+              userAgency = 'SPECIAL_BRANCH_KPK'
+            } else if (user?.state === 'Balochistan') {
+              userAgency = 'SPECIAL_BRANCH_BALOCHISTAN'
+            } else if (user?.state === 'Federal') {
+              userAgency = 'SPECIAL_BRANCH_FEDERAL'
+            } else {
+              userAgency = 'INTELLIGENCE_BUREAU'
+            }
+          }
+          
+          console.log('Agency filtering:', {
+            userAgency,
+            userState: user?.state,
+            appId: app.id,
+            appStatus: app.status,
+            pendingAgencies: app.pendingVerificationAgencies
+          })
+          
+          // Check if the application is pending verification by this agency
+          if (app.pendingVerificationAgencies && app.pendingVerificationAgencies.length > 0) {
+            return app.pendingVerificationAgencies.includes(userAgency)
+          }
+          
+          // Fallback to legacy filtering (for old applications)
+          if (user?.agency) {
+            return app.assignedAgency === user?.agency
+          }
+          if (user?.state) {
+            return app.region === user?.state
+          }
+          return true
+        }) || []
+        
+        setApplications(filteredApplications)
+        
+        // Calculate stats
+        const totalApps = filteredApplications.length
+        const pending = filteredApplications.filter(app => 
+          app.status === 'PENDING_VERIFICATION'
+        ).length
+        const completed = filteredApplications.filter(app => 
+          app.status === 'VERIFICATION_SUBMITTED'
+        ).length
+
+        setStats({
+          total: totalApps,
+          pending,
+          approved: completed, // Completed verifications
+          rejected: 0 // Agencies don't reject, they just submit verification
+        })
+      } catch (fallbackError) {
+        showNotification.error("Failed to fetch applications")
+      }
     } finally {
       setIsLoading(false)
     }

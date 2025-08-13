@@ -78,6 +78,12 @@ export interface Application {
   // API data fields
   nadra_api_data?: any
   passport_api_data?: any
+  // Print tracking fields (for ready-for-print applications)
+  isPrinted?: boolean
+  printedAt?: string
+  printReference?: string
+  printedBy?: string
+  originalApplicationId?: string
 }
 
 export interface ApplicationAttachment {

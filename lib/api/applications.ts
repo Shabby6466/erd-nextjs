@@ -77,6 +77,12 @@ const transformApplicationData = (apiData: any): Application => {
     etdExpiryDate: apiData.etd_expiry_date,
     blacklistCheckPassed: apiData.blacklist_check_passed,
     reviewedAt: apiData.reviewed_at,
+    // Print tracking fields (for ready-for-print applications)
+    isPrinted: apiData.is_printed || false,
+    printedAt: apiData.printed_at,
+    printReference: apiData.print_reference,
+    printedBy: apiData.printed_by,
+    originalApplicationId: apiData.original_application_id,
   }
 }
 
@@ -163,6 +169,38 @@ export const applicationAPI = {
   // Get application by ID
   getById: async (id: string): Promise<Application> => {
     const response = await apiClient.get(`/applications/${id}`)
+    return transformApplicationData(response.data)
+  },
+
+  // NEW: Get agency applications list (dedicated endpoint)
+  getAgencyApplications: async (filters?: any): Promise<{ data: Application[] }> => {
+    const response = await apiClient.get(`/applications/agencies/list`, { params: filters })
+    const rawData = response.data || []
+    const transformedData = Array.isArray(rawData) 
+      ? rawData.map(transformApplicationData)
+      : []
+    return { data: transformedData }
+  },
+
+  // NEW: Get ready for print applications list (dedicated endpoint)
+  getReadyForPrintApplications: async (filters?: any): Promise<{ data: Application[] }> => {
+    const response = await apiClient.get(`/applications/ready-for-print/list`, { params: filters })
+    const rawData = response.data || []
+    const transformedData = Array.isArray(rawData) 
+      ? rawData.map(transformApplicationData)
+      : []
+    return { data: transformedData }
+  },
+
+  // NEW: Get ready for print application by ID (dedicated endpoint)
+  getReadyForPrintById: async (id: string): Promise<Application> => {
+    const response = await apiClient.get(`/applications/ready-for-print/${id}`)
+    return transformApplicationData(response.data)
+  },
+
+  // NEW: Mark application as printed
+  markAsPrinted: async (id: string): Promise<Application> => {
+    const response = await apiClient.patch(`/applications/ready-for-print/${id}/mark-printed`)
     return transformApplicationData(response.data)
   },
 

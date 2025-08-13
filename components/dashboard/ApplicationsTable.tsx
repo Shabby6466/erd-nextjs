@@ -23,7 +23,8 @@ import {
   XCircle, 
   AlertTriangle,
   FileText,
-  Download
+  Download,
+  Clock
 } from "lucide-react"
 import { Application, Region, UserRole } from "@/lib/types"
 import { formatDate, formatStatus, getStatusVariant } from "@/lib/utils/formatting"
@@ -42,6 +43,7 @@ interface ApplicationsTableProps {
   onUploadAttachment?: (id: string) => void
   onPrint?: (id: string) => void
   onSubmitVerification?: (id: string, remarks: string, attachment?: File) => Promise<void>
+  onMarkAsPrinted?: (id: string) => Promise<void>
 }
 
 export function ApplicationsTable({ 
@@ -55,7 +57,8 @@ export function ApplicationsTable({
   onSendToAgency,
   onUploadAttachment,
   onPrint,
-  onSubmitVerification
+  onSubmitVerification,
+  onMarkAsPrinted
 }: ApplicationsTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const router = useRouter()
@@ -135,6 +138,9 @@ export function ApplicationsTable({
                 <th className="text-left p-4 font-medium">Created</th>
                 {userRole === 'AGENCY' && (
                   <th className="text-left p-5 font-medium">Verification Document</th>
+                )}
+                {userRole === 'MISSION_OPERATOR' && (
+                  <th className="text-left p-4 font-medium">Print Status</th>
                 )}
                 <th className="text-left p-4 font-medium">Actions</th>
               </tr>
@@ -236,6 +242,26 @@ export function ApplicationsTable({
                       )}
                     </td>
                   )}
+                  {userRole === 'MISSION_OPERATOR' && (
+                    <td className="p-3">
+                      {application.isPrinted ? (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-green-600 text-sm">Printed</span>
+                          {application.printedAt && (
+                            <span className="text-gray-500 text-xs">
+                              {formatDate(application.printedAt)}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-yellow-600" />
+                          <span className="text-yellow-600 text-sm">Pending</span>
+                        </div>
+                      )}
+                    </td>
+                  )}
                   <td className="p-3">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -252,12 +278,22 @@ export function ApplicationsTable({
                         
                         {/* Mission Operator Actions */}
                         {userRole === 'MISSION_OPERATOR' && canPrint(application) && (
-                          <DropdownMenuItem
-                            onClick={() => onPrint?.(application.id)}
-                          >
-                            <Printer className="mr-2 h-4 w-4" />
-                            Print Document
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => onPrint?.(application.id)}
+                            >
+                              <Printer className="mr-2 h-4 w-4" />
+                              Print Document
+                            </DropdownMenuItem>
+                            {!application.isPrinted && onMarkAsPrinted && (
+                              <DropdownMenuItem
+                                onClick={() => onMarkAsPrinted?.(application.id)}
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Mark as Printed
+                              </DropdownMenuItem>
+                            )}
+                          </>
                         )}
 
                         {/* Agency Actions - Verification Workflow */}
