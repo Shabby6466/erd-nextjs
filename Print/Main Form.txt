@@ -1,0 +1,504 @@
+
+using etd.dgip.Class;
+using Npgsql;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Data.SqlClient;
+using System.Drawing;
+using System.Drawing.Printing;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace etd.dgip
+{
+    public partial class frmEtdPrint : Form
+    {
+        PrintData printer = new PrintData();
+
+
+        public frmEtdPrint()
+        {
+            InitializeComponent();
+            StyleDataGridView();
+        }
+
+        private void frmEtdPrint_Load(object sender, EventArgs e)
+        {
+            Populate_Grid();
+            
+        }
+
+        void StyleDataGridView()
+        {
+
+            gvTokenDetails.BorderStyle = BorderStyle.None;
+
+            //gvTokenDetails.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+            gvTokenDetails.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            gvTokenDetails.BackgroundColor = Color.FromArgb(111, 147, 175);
+
+            gvTokenDetails.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(56, 73, 87);
+            gvTokenDetails.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            gvTokenDetails.EnableHeadersVisualStyles = false;
+            gvTokenDetails.AutoResizeColumns();
+
+            gvTokenDetails.RowsDefaultCellStyle.BackColor = Color.White;
+            gvTokenDetails.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(159, 182, 199);
+
+
+            gvTokenDetails.DefaultCellStyle.Font = new Font("Microsoft Sans Serif", 11);
+            gvTokenDetails.ColumnHeadersDefaultCellStyle.Font = new Font("Microsoft Sans Serif", 12F, FontStyle.Bold, GraphicsUnit.Pixel);
+
+            //gvTokenDetails.Columns[1].HeaderText = "Name";
+
+        }
+
+
+
+        private void Populate_Grid()
+        {
+
+            
+                string strSQL = " SELECT t.etd_id as \"ETD_ID\",t.name as \"NAME\",t.citizen_no as \"Citizen No\" from etd_token t, etd_processing_queue p " +
+                                " WHERE t.etd_id = p.etd_id " +
+                                " AND stage = 'ready for print' and status = 'empty' order by t.insertion_timestamp";
+                using (NpgsqlDataAdapter sda = new NpgsqlDataAdapter(strSQL, clsConnection.cnCon_local))
+                {
+                    //Fill the DataTable with records from Table.
+                    DataTable dt = new DataTable();
+                    sda.Fill(dt);
+
+                    gvTokenDetails.DataSource = dt;
+                }
+            
+
+        }
+
+       private void GetData(string etd_no)
+        {
+                //string sQL = "SELECT * from etd_data WHERE etd_id = '" + lblEtd.Text.Trim() + "'";
+
+                /*string sQL = " SELECT a.etd_id,a.last_name,a.first_name,a.gender,b.issue_date," +
+                                 " b.expiry_date,a.photograph,a.birthdate,q.mrz_line_one,q.mrz_line_two,document_no " +
+                                 " from etd_data a,etd_decision b,etd_print_queue q" +
+                                 " WHERE a.etd_id = '" + lblEtd.Text.Trim() + "' and a.etd_id=b.etd_id and a.etd_id=q.etd_id"; */
+
+                //string sQL = "SELECT ed.etd_id,pq.document_no,et.name,ed.father_name,ed.birthdate,ed.gender,et.citizen_no,etd.issue_date,etd.expiry_date,pq.mrz_line_one,pq.mrz_line_two,ed.photograph" +
+                //                "FROM etd_data ed" + 
+                //                "Inner Join etd_token et On et.etd_id = ed.etd_id" +
+                //                "Inner Join etd_print_queue pq On et.etd_id = pq.etd_id" +
+                //                "Inner Join etd_decision etd On et.etd_id = etd.etd_id" +
+                //                "Where et.etd_id =" + etd_no;
+
+                string sQL =    "SELECT " +
+                       /*0*/    "ed.etd_id," +
+                       /*1*/    "pq.document_no," +
+                       /*2*/    "et.name," +
+                       /*3*/    "ed.father_name," +
+                       /*4*/    "ed.birthdate," +
+                       /*5*/    "ed.birth_country," +
+                       /*6*/    "ed.gender," +
+                       /*7*/    "et.citizen_no," +
+                       /*8*/    "etd.issue_date," +
+                       /*9*/    "etd.expiry_date," +
+                       /*10*/   "pq.mrz_line_one," +
+                       /*11*/   "pq.mrz_line_two," +
+                       /*12*/   "ed.photograph, " +
+                       /*13*/   "et.passport_no " +
+                                "FROM etd_data ed " +
+                                "Inner Join etd_token et On et.etd_id = ed.etd_id " +
+                                "Inner Join etd_print_queue pq On et.etd_id = pq.etd_id " +
+                                "Inner Join etd_decision etd On et.etd_id = etd.etd_id " +
+                                "Inner Join etd_processing_queue ep On ep.etd_id = etd.etd_id "+
+                                "Where ep.stage='ready for print' and et.etd_id ='" + etd_no.ToString() + "'";
+
+                using (var cmd = new NpgsqlCommand(sQL, clsConnection.cnCon_local))
+                {
+                    byte[] applicantImageByte = null;
+                    
+                    //cmd.Parameters.Add(new SqlParameter("@etdId", etd_no));
+
+                    var rdr = cmd.ExecuteReader();
+                    if (rdr.Read())
+                    {
+                        txtType.Text = "PAK";
+                        
+                        txtCountryCode.Text = "PAK";
+
+                        txtTrackingId.Text = rdr.GetString(0) ;
+                        txtDocumentNo.Text = rdr.GetString(1);
+
+                        //txtFullname.Text = (string)rdr["et.name"];
+                        txtGivenNames.Text = rdr.GetString(2);
+                        
+                        //txtFathersName.Text = (string)rdr["ed.father_name"];
+                        txtFathersName.Text = rdr.GetString(3);
+
+                        //txtBirthDate.Text = rdr["ed.birthdate"].ToString();
+                        txtBirthDate.Text = rdr.GetDate(4).ToString();
+                        
+                        txtNationality.Text = rdr.GetString(5);
+
+                        // txtSex.Text = (string)rdr["ed.gender"].ToString();
+                        txtSex.Text = rdr.GetString(6);
+
+                        // txtCitizenNo.Text = (string)rdr["et.citizen_no"];
+                        txtCitizenNo.Text = rdr.GetString(7);
+
+                        //txtIssueDate.Text = (string)rdr["etd.issue_date"];
+                        txtIssueDate.Text = rdr.GetDate(8).ToString();
+
+                        //txtExpiryDate.Text = (string)rdr["etd.expiry_date"];
+                        txtExpiryDate.Text = rdr.GetDate(9).ToString();
+
+                        //txtMrLineOne.Text = (string)rdr["pq.mrz_line_one"];
+                        txtMrLineOne.Text = rdr.GetString(10);
+
+                        //txtMrzLineTwo.Text = (string)rdr["pq.mrz_line_two"];
+                        txtMrzLineTwo.Text = rdr.GetString(11);
+
+                        //applicantImageByte = (byte[])rdr["photograph"];
+                        applicantImageByte = (byte[])rdr["photograph"];
+
+                        txtPassportNo.Text = rdr.GetString(13);
+                    
+                        txtIssuingAuthority.Text = "Pakistan";
+                    }
+                    rdr.Close();
+                    if (applicantImageByte != null)
+                    {
+                        using (MemoryStream applicantImageStream = new MemoryStream(applicantImageByte))
+                        {
+                            pic.Image = Image.FromStream(applicantImageStream, true, true);
+                        }
+                    }
+                }
+            
+        }
+
+
+
+
+
+
+        private void PrintEtd()
+        {
+            //if (!this.db.Open())
+            //{
+            //    MessageBox.Show("Print Results could not be updated. Database connection Error", "Print Status", MessageBoxButtons.OK, MessageBoxIcon.Hand);
+            //}
+            //else
+            //{
+            //    this.personalizationResult = "in process";
+            //    if (!this.db.SetVisaPrintResults(this.visaId, this.personalizationResult, stickerNo, "printed"))
+            //    {
+            //        MessageBox.Show(this, "Unable to commit transaction, please contact administrator", "Print Results", MessageBoxButtons.OK, MessageBoxIcon.Hand);
+            //        this.db.Close();
+            //        return;
+            //    }
+            //}
+            //this.db.Close();
+
+            //string file_path = @(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)) + "NPF.ini";
+            string path = "E:\\NPF.ini";
+           // MessageBox.Show((@path));
+
+            printer.ReadIni();
+            setPrintValue();
+
+            printer.Print();
+
+            //this.btn_reprint.Enabled = true;
+            //this.btn_Print.Enabled = false;
+            //this.btn_cancel.Enabled = false;
+            //this.btn_next.Enabled = false;
+            //this.btn_pass.Enabled = true;
+            //this.btn_reject.Enabled = true;
+            //this.btn_fail.Enabled = true;
+            //this.txt_StickerNo.Enabled = false;
+        }
+
+
+
+
+
+
+        private void setPrintValue()
+        {
+            //printer.SetField("issuePlace", this.issuingPlace);
+            //printer.SetField("validFrom", this.validFrom);
+            //printer.SetField("validUntil", this.validUntil);
+            //printer.SetField("duration", this.duration);
+            //printer.SetField("entries", this.entryType);
+            //printer.SetField("docNo", this.documentNo);
+            //printer.SetField("type", this.visaType);
+            //printer.SetField("surName", this.lastName);
+            //printer.SetField("givenNames", this.firstNames);
+            //printer.SetField("passport", this.passportNo);
+            //printer.SetField("sex", this.gender);
+            //printer.SetField("nationality", this.nationality);
+            //printer.SetField("dob", this.birthDate);
+            //printer.SetField("children", this.noOfChildren.ToString());
+            //printer.SetField("ocr1", this.mrzOne);
+            //printer.SetField("ocr2", this.mrzTwo);
+            //printer.SetField("CFvisaType", this.ShortenStringforPrint(this.visaType, 30));
+            //printer.SetField("CFdocumentNo", this.documentNo);
+            //printer.SetField("CFfullname", this.ShortenStringforPrint(Utility.ToTitlecase(this.firstNames + " " + this.lastName), 30));
+            //printer.SetField("CFdob", this.birthDate);
+            //printer.SetField("CFpassportNo", this.passportNo);
+            //printer.SetField("CFpassportcountry", this.ShortenStringforPrint(Utility.ToTitlecase(this.passportIssuingCountry), 30));
+            //printer.SetField("CFissuedate", this.validFrom);
+            //printer.SetField("CFexpirydate", this.validUntil);
+            //printer.SetImage("CFappPic", this.pictureBox2.Image);
+            //printer.SetImage("appPic", this.pictureBox2.Image);
+
+            //printer.SetField("givenNames", "Fawad ur");
+            //printer.SetField("passport", "AB1000001");
+
+            //printer.SetField("nationality", "PAK");
+            //printer.SetField("type", "P");
+            //printer.SetField("nationality", "PAK");
+            //printer.SetField("docno", "E0000000001");
+            //printer.SetField("surName", "Rehman");
+            //printer.SetField("givenNames", "Fawad ur");
+            //printer.SetField("nationality", "Pakistani");
+            //printer.SetField("dob", "24-04-1980");
+            //printer.SetField("sex", "M");
+            //printer.SetField("validFrom", "24 JAN 2021");
+            //printer.SetField("validUntil", "24 JUL 2021");
+            //printer.SetField("citizenno", "1330219018635");
+            //printer.SetField("trackingno", "70101000002E");
+            //printer.SetField("givenNames", "Fawad ur");
+            //printer.SetField("passport", "AB1000001");
+
+            //printer.SetField("nationality", "PAK");
+            //printer.SetField("dob", "24-04-1980");
+            //printer.SetField("children", "2");
+
+            //printer.SetField("CFvisaType", "Work");
+            //printer.SetField("CFdocumentNo", "E000000001");
+            //printer.SetField("CFfullname", "Fawad ur Rehman");
+            //printer.SetField("CFdob", "24-04-1980");
+            //printer.SetField("CFpassportNo", "AB100001");
+            //printer.SetField("CFpassportcountry", "Pakistan");
+            //printer.SetField("CFissuedate", "01-01-2021");
+            //printer.SetField("CFexpirydate", "30-06-2021");
+            //  printer.SetImage("CFappPic", this.pictureBox2.Image);
+
+            printer.SetField("type", "P");
+            printer.SetField("nationality", "PAK");
+            printer.SetField("passportno", txtPassportNo.Text.Trim());
+            printer.SetField("surName", txtGivenNames.Text.Trim());
+            printer.SetField("givenNames", txtFathersName.Text.Trim());
+            printer.SetField("docno", txtDocumentNo.Text.Trim());
+            printer.SetField("nationality", "PAK");
+            printer.SetField("dob", txtBirthDate.Text.Trim());
+            printer.SetField("sex", txtSex.Text.Trim());
+            printer.SetField("validFrom", txtIssueDate.Text.Trim());
+            printer.SetField("validUntil", txtExpiryDate.Text.Trim());
+            printer.SetField("citizenno", txtCitizenNo.Text.Trim());
+            printer.SetField("trackingno", txtTrackingId.Text.Trim());
+            printer.SetField("ocr1", txtMrLineOne.Text.Trim());
+            printer.SetField("ocr2", txtMrzLineTwo.Text.Trim());
+
+            printer.SetField("documentno", txtDocumentNo.Text.Trim());
+            printer.SetImage("appPic", pic.Image);
+        }
+        private void cmdReset_Click(object sender, EventArgs e)
+        {
+           // ClearTextboxes(Control.ControlCollection a);
+        }
+
+        private void ClearTextboxes(Control.ControlCollection ctrls)
+        {
+            foreach (Control ctrl in ctrls)
+            {
+                if (ctrl is TextBox)
+                    ((TextBox)ctrl).Text = string.Empty;
+                ClearTextboxes(ctrl.Controls);
+
+            }
+        }
+        //      
+
+        private void cmdGetRecord_Click(object sender, EventArgs e)
+        {
+
+            
+           
+        }
+            private void GetSavedData()
+            {
+                //string sQL = " SELECT a.etd_id,a.last_name,a.first_name,a.gender,b.issue_date," +
+                //             " b.expiry_date,a.photograph,a.birthdate,q.mrz_line_one,q.mrz_line_two,document_no " +
+                //             " from etd_data a,etd_decision b,etd_print_queue q" +
+                //             " WHERE a.etd_id = '" + txtEtdId.Text.Trim() + "' and a.etd_id=b.etd_id and a.etd_id=q.etd_id";
+
+                //string sQL = "SELECT ed.etd_id,pq.document_no,et.name,ed.father_name,ed.gender,et.citizen_no,pq.mrz_line_one,pq.mrz_line_two,ed.photograph " +
+                //                "FROM etd_data ed " +
+                //                "Inner Join etd_token et On et.etd_id = ed.etd_id " +
+                //                "Inner Join etd_print_queue pq On et.etd_id = pq.etd_id " +
+                //                "Inner Join etd_decision etd On et.etd_id = etd.etd_id " +
+                //                "Where et.etd_id ='" + txtEtdId.Text.Trim() + "'";
+
+                string sQL = "SELECT " +
+                       /*0*/    "ed.etd_id," +
+                       /*1*/    "pq.document_no," +
+                       /*2*/    "et.name," +
+                       /*3*/    "ed.father_name," +
+                       /*4*/    "ed.birthdate," +
+                       /*5*/    "ed.birth_country," +
+                       /*6*/    "ed.gender," +
+                       /*7*/    "et.citizen_no," +
+                       /*8*/    "etd.issue_date," +
+                       /*9*/    "etd.expiry_date," +
+                       /*10*/    "pq.mrz_line_one," +
+                       /*11*/    "pq.mrz_line_two," +
+                       /*12*/    "ed.photograph " +
+                                "FROM etd_data ed " +
+                                "Inner Join etd_token et On et.etd_id = ed.etd_id " +
+                                "Inner Join etd_print_queue pq On et.etd_id = pq.etd_id " +
+                                "Inner Join etd_decision etd On et.etd_id = etd.etd_id " +
+                                "Where et.etd_id ='" + txtEtdId.Text.Trim() + "'";
+
+
+                using (var cmd = new NpgsqlCommand(sQL, clsConnection.cnCon_local))
+                    {
+                        byte[] applicantImageByte = null;
+                        
+                        var rdr = cmd.ExecuteReader();
+                        if (rdr.Read())
+                        {
+                        txtType.Text = "PAK";
+
+                        txtCountryCode.Text = "PAK";
+
+                        //txtDocumentNo.Text = (string)rdr["pq.document_no"];
+                        txtDocumentNo.Text = rdr.GetString(1);
+
+                        //txtFullname.Text = (string)rdr["et.name"];
+                        txtGivenNames.Text = rdr.GetString(2);
+
+                        //txtFathersName.Text = (string)rdr["ed.father_name"];
+                        txtFathersName.Text = rdr.GetString(3);
+
+                        //txtBirthDate.Text = rdr["ed.birthdate"].ToString();
+                        txtBirthDate.Text = rdr.GetDate(4).ToString();
+
+                        txtNationality.Text = rdr.GetString(5);
+
+                        // txtSex.Text = (string)rdr["ed.gender"].ToString();
+                        txtSex.Text = rdr.GetString(6);
+
+                        // txtCitizenNo.Text = (string)rdr["et.citizen_no"];
+                        txtCitizenNo.Text = rdr.GetString(7);
+
+                        //txtIssueDate.Text = (string)rdr["etd.issue_date"];
+                        txtIssueDate.Text = rdr.GetDate(8).ToString();
+
+                        //txtExpiryDate.Text = (string)rdr["etd.expiry_date"];
+                        txtExpiryDate.Text = rdr.GetDate(9).ToString();
+
+                        //txtMrLineOne.Text = (string)rdr["pq.mrz_line_one"];
+                        txtMrLineOne.Text = rdr.GetString(10);
+
+                        //txtMrzLineTwo.Text = (string)rdr["pq.mrz_line_two"];
+                        txtMrzLineTwo.Text = rdr.GetString(11);
+
+                        //applicantImageByte = (byte[])rdr["photograph"];
+                        applicantImageByte = (byte[])rdr["photograph"];
+
+                    }
+                        rdr.Close();
+                        if (applicantImageByte != null)
+                        {
+                            using (MemoryStream applicantImageStream = new MemoryStream(applicantImageByte))
+                            {
+                                pic.Image = Image.FromStream(applicantImageStream, true, true);
+                            }
+                        }
+                    }
+                
+            
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "Image Files(*.jpg; *.jpeg; *.gif; *.bmp)|*.jpg; *.jpeg; *.gif; *.bmp";
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    pic.Image = new Bitmap(openFileDialog.FileName);
+                }
+            }
+        }
+
+        private void label7_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtNationality_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label12_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtExpiryDate_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button1_Click_1(object sender, EventArgs e)
+        {
+            this.Close();
+            this.Dispose();
+        }
+
+        private void grd_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+           
+                int rowIndex = e.RowIndex;
+                txtCitizenNo.Text = gvTokenDetails.Rows[rowIndex].Cells[2].Value.ToString();
+                string etd_no = gvTokenDetails.Rows[rowIndex].Cells[0].Value.ToString();
+                lblEtd.Text = gvTokenDetails.Rows[rowIndex].Cells[0].Value.ToString();
+                GetData(etd_no);
+           
+        }
+
+        private void cmdGetRecord_Click_1(object sender, EventArgs e)
+        {
+            MessageBox.Show("Clicked");
+            GetSavedData();
+        }
+
+        private void cmdPrint_Click(object sender, EventArgs e)
+        {
+            PrintEtd();
+        }
+
+        private void button1_Click_2(object sender, EventArgs e)
+        {
+            this.Close();
+            this.Dispose();
+        }
+    }
+}
+
+
+
+
+
+
+

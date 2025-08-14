@@ -31,7 +31,7 @@ export const citizenSchema = z.object({
 
 export const applicationSchema = z.object({
   id: z.string().optional(),
-  status: z.enum(['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'COMPLETED']),
+  status: z.enum(['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'READY_FOR_PERSONALIZATION', 'READY_FOR_PRINT', 'APPROVED', 'REJECTED', 'COMPLETED']),
   ...citizenSchema.shape,
   submittedBy: z.string().optional(),
   reviewedBy: z.string().optional(),
@@ -51,7 +51,7 @@ export const submitVerificationSchema = z.object({
 })
 
 export const applicationFiltersSchema = z.object({
-  status: z.enum(['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'COMPLETED']).optional(),
+  status: z.enum(['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'READY_FOR_PERSONALIZATION', 'READY_FOR_PRINT', 'APPROVED', 'REJECTED', 'COMPLETED']).optional(),
   search: z.string().optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
