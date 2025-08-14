@@ -36,7 +36,7 @@ export default function MinistryDashboard() {
         ['SUBMITTED', 'MINISTRY_REVIEW'].includes(app.status)
       ).length || 0
       const approved = response.data?.filter(app => 
-        ['APPROVED', 'COMPLETED'].includes(app.status)
+        ['READY_FOR_PERSONALIZATION', 'READY_FOR_PRINT', 'APPROVED', 'COMPLETED'].includes(app.status)
       ).length || 0
       const rejected = response.data?.filter(app => 
         app.status === 'REJECTED'

@@ -44,8 +44,8 @@ export default function PrintApplicationPage() {
   // Generate OCR lines for machine readability
   const generateOCR1 = (application: Application) => {
     const surname = application.lastName?.toUpperCase() || ""
-    const givenNames = application.firstName?.toUpperCase() || ""
-    return `P<PAK${surname}<<${givenNames}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<`
+    const givenNames = application.firstName?.replace('','<').toUpperCase() || ""
+    return `E<PAK${surname}<<${givenNames}<<<<<<<<<<<<<`
   }
 
   const generateOCR2 = (application: Application) => {
@@ -55,7 +55,7 @@ export default function PrintApplicationPage() {
     const expiryDate = application.etdExpiryDate ? new Date(application.etdExpiryDate).toISOString().slice(2, 10).replace(/-/g, "") : "000000"
     const gender = application.gender?.toUpperCase() === "MALE" ? "M" : "F"
     
-    return `${documentNo}<8PAK${birthDate}${gender}${expiryDate}${citizenNo}<<<<<<<<<<<<<<`
+    return `${documentNo}<8PAK${birthDate}${gender}${expiryDate}${citizenNo}<`
   }
 
   if (isLoading) {
@@ -82,7 +82,7 @@ export default function PrintApplicationPage() {
   return (
     <div className="max-w-[491.34px] mx-auto overflow-hidden bg-white print:p-0 print:m-0 print:max-w-none">
       {/* Print Controls - Hidden during print */}
-      <div className="print:hidden mb-4 text-center">
+      <div className="print:hidden mb-4 text-center relative z-10">
         <button
           onClick={handlePrint}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -98,7 +98,7 @@ export default function PrintApplicationPage() {
     
       
       {/* Document Container - Following exact dimensions from image */}
-      <div className="absolute bottom-0 w-[500.34px] h-[1020px]  print:border-0 print-document">
+      <div className="absolute bottom-0 w-[500.34px] h-[1020px] print:border-0 print-document z-0">
         
         {/* TOP SECTION (1st half) - Blank header area */}
         <div className="absolute top-0 left-0 w-full h-[340px]  ">
@@ -141,19 +141,19 @@ export default function PrintApplicationPage() {
               {/* Top row - Type, Country Code, Document No */}
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Type
+                  <span className="text-[8px] text-gray-500">Type
                  <br />
-                  <span className="text-[10px] font-semibold">P</span>
+                  <span className="text-[8px] font-semibold">P</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Country Code<br />
-                  <span className="text-[10px] font-semibold">PAK</span>
+                  <span className="text-[8px] text-gray-500">Country Code<br />
+                  <span className="text-[8px] font-semibold">PAK</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Document No.<br/>
-                  <span className="text-[10px] font-semibold">{application.id}</span>
+                  <span className="text-[5px] text-gray-500">Document No.<br/>
+                  <span className="text-[8px] font-semibold">{application.id}</span>
                   </span>
                 </div>
               </div>
@@ -161,70 +161,69 @@ export default function PrintApplicationPage() {
               {/* Personal Information - Left column */}
               <div className="grid grid-cols-2 gap-x-8 gap-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Surname<br/>
-                  <span className="text-[10px] font-semibold">{application.lastName?.toUpperCase()}</span>
+                  <span className="text-[5px] text-gray-500">Surname<br/>
+                  <span className="text-[8px] font-semibold">{application.lastName?.toUpperCase()}</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Citizen Number<br/>
-                  <span className="text-[10px] font-semibold">{application.citizenId}</span>
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Given Names<br/>
-                  <span className="text-[10px] font-semibold">{application.firstName?.toUpperCase()}</span>
+                  <span className="text-[8px] text-gray-500">Citizen Number<br/>
+                  <span className="text-[8px] font-semibold">{application.citizenId}</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Issuing Authority<br/>
-                  <span className="text-[10px] font-semibold">PAKISTAN</span>
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Nationality<br/>
-                  <span className="text-[10px] font-semibold">PAKISTANI</span>
+                  <span className="text-[8px] text-gray-500">Given Names<br/>
+                  <span className="text-[8px] font-semibold">{application.firstName?.toUpperCase()}</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Tracking Number<br/>
-                  <span className="text-[10px] font-semibold">{application.id}</span>
+                  <span className="text-[8px] text-gray-500">Sex<br/>
+                  <span className="text-[8px] font-semibold">{application.gender?.toUpperCase() === "MALE" ? "M" : "F"}</span>
                   </span>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Date of birth<br/>
-                  <span className="text-[10px] font-semibold">{formatDate(application.dateOfBirth)}</span>
+                  <span className="text-[8px] text-gray-500">Nationality<br/>
+                  <span className="text-[8px] font-semibold">PAKISTANI</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] text-gray-500">Tracking Number<br/>
+                  <span className="text-[8px] font-semibold">{application.id}</span>
                   </span>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Sex<br/>
-                  <span className="text-[10px] font-semibold">{application.gender?.toUpperCase() === "MALE" ? "M" : "F"}</span>
+                  <span className="text-[8px] text-gray-500">Date of birth<br/>
+                  <span className="text-[8px] font-semibold">{formatDate(application.dateOfBirth)}</span>
                   </span>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Date of issue<br/>
-                  <span className="text-[10px] font-semibold">{application.etdIssueDate ? formatDate(application.etdIssueDate) : formatDate(application.updatedAt)}</span>
+                  <span className="text-[8px] text-gray-500">Issuing Authority<br/>
+                  <span className="text-[8px] font-semibold">PAKISTAN</span>
                   </span>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500">Date of expiry<br/>
-                  <span className="text-[10px] font-semibold">{application.etdExpiryDate ? formatDate(application.etdExpiryDate) : "6 MONTHS FROM ISSUE"}</span>
+                  <span className="text-[8px] text-gray-500">Date of issue<br/>
+                  <span className="text-[8px] font-semibold">{application.etdIssueDate ? formatDate(application.etdIssueDate) : formatDate(application.updatedAt)}</span>
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] text-gray-500">Date of expiry<br/>
+                  <span className="text-[8px] font-semibold">{application.etdExpiryDate ? formatDate(application.etdExpiryDate) : "3 MONTHS FROM ISSUE"}</span>
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Bottom - Machine Readable Zone (MRZ) */}
-            <div className="absolute bottom-[135px] left-[20px] right-[20px]">
-              <div className="text-[13px] font-mono tracking-wider ocr-text leading-tight">
+            <div className="absolute bottom-[135px] left-[60px] gap-[0.25px]  ">
+              <div className="text-[11.5px] font-mono-bold tracking-wider ocr-text leading-tight">
                 {generateOCR1(application)}
               </div>
-              <div className="text-[13px] font-mono tracking-wider ocr-text leading-tight">
+              <div className="text-[11.5px] font-mono-bold tracking-wider ocr-text leading-tight">
                 {generateOCR2(application)}
               </div>
             </div>

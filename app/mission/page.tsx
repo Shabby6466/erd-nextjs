@@ -38,7 +38,7 @@ export default function MissionOperatorDashboard() {
         ['SUBMITTED', 'UNDER_REVIEW', 'AGENCY_REVIEW', 'MINISTRY_REVIEW'].includes(app.status)
       ).length || 0
       const approved = response.data?.filter(app => 
-        ['APPROVED', 'COMPLETED'].includes(app.status)
+        ['READY_FOR_PERSONALIZATION', 'READY_FOR_PRINT', 'APPROVED', 'COMPLETED'].includes(app.status)
       ).length || 0
       const pending = response.data?.filter(app => 
         ['DRAFT'].includes(app.status)

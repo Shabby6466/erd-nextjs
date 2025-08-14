@@ -83,7 +83,7 @@ export function ApplicationsTable({
 
   const canPrint = (application: Application) => {
     return userRole === 'MISSION_OPERATOR' && 
-           ['APPROVED', 'COMPLETED'].includes(application.status)
+           ['READY_FOR_PRINT', 'COMPLETED'].includes(application.status)
   }
 
   if (isLoading) {

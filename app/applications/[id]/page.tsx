@@ -62,7 +62,7 @@ export default function ApplicationViewPage() {
 
   const canPrint = useMemo(() => {
     if (!application) return false
-    return role === "MISSION_OPERATOR" && ["APPROVED", "COMPLETED"].includes(application.status)
+    return role === "MISSION_OPERATOR" && ["READY_FOR_PRINT", "COMPLETED"].includes(application.status)
   }, [application, role])
 
 
@@ -143,7 +143,7 @@ export default function ApplicationViewPage() {
       // For applications with agency remarks (VERIFICATION_RECEIVED status), use updateStatus
       if (application.status === "VERIFICATION_RECEIVED") {
         await applicationAPI.updateStatus(application.id, {
-          status: "APPROVED",
+          status: "READY_FOR_PERSONALIZATION",
           black_list_check: data.black_list_check || false,
           ...(data.etd_issue_date && { etd_issue_date: data.etd_issue_date }),
           ...(data.etd_expiry_date && { etd_expiry_date: data.etd_expiry_date })
@@ -215,7 +215,7 @@ export default function ApplicationViewPage() {
     setIsActionLoading(true)
     try {
       await applicationAPI.updateStatus(application.id, {
-        status: "APPROVED",
+        status: "READY_FOR_PERSONALIZATION",
         black_list_check: data.black_list_check || false,
         ...(data.etd_issue_date && { etd_issue_date: data.etd_issue_date }),
         ...(data.etd_expiry_date && { etd_expiry_date: data.etd_expiry_date })
