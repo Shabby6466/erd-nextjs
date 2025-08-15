@@ -12,6 +12,8 @@ export default function PrintApplicationPage() {
   const params = useParams()
   const [application, setApplication] = useState<Application | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [sheetNo, setSheetNo] = useState("")
+  const [isPrinting, setIsPrinting] = useState(false)
 
   useEffect(() => {
     const fetchApplication = async () => {
@@ -37,8 +39,28 @@ export default function PrintApplicationPage() {
     }
   }, [application])
 
-  const handlePrint = () => {
-    window.print()
+  const handlePrint = async () => {
+    if (!sheetNo.trim()) {
+      showNotification.error("Please enter a sheet number")
+      return
+    }
+
+    setIsPrinting(true)
+    try {
+      // Call the print API with sheet number
+      await applicationAPI.printApplicationWithSheet(application!.id, sheetNo.trim())
+      
+      // Show success message
+      showNotification.success("Print request submitted successfully")
+      
+      // Trigger browser print
+      window.print()
+    } catch (error) {
+      showNotification.error("Failed to submit print request")
+      console.error('Print error:', error)
+    } finally {
+      setIsPrinting(false)
+    }
   }
 
   // Generate OCR lines for machine readability
@@ -83,15 +105,32 @@ export default function PrintApplicationPage() {
     <div className="max-w-[491.34px] mx-auto overflow-hidden bg-white print:p-0 print:m-0 print:max-w-none">
       {/* Print Controls - Hidden during print */}
       <div className="print:hidden mb-4 text-center relative z-10">
-        <button
-          onClick={handlePrint}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Print Document
-        </button>
-        <p className="text-sm text-gray-600 mt-2">
-          This document will be formatted for A4 paper printing
-        </p>
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="sheetNo" className="text-sm font-medium text-gray-700">
+              Sheet Number:
+            </label>
+            <input
+              id="sheetNo"
+              type="text"
+              value={sheetNo}
+              onChange={(e) => setSheetNo(e.target.value)}
+              placeholder="Enter sheet number"
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isPrinting}
+            />
+          </div>
+          <button
+            onClick={handlePrint}
+            disabled={isPrinting || !sheetNo.trim()}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {isPrinting ? "Printing..." : "Print Document"}
+          </button>
+          <p className="text-sm text-gray-600">
+            This document will be formatted for A4 paper printing
+          </p>
+        </div>
       </div>
 
       {/* Watermarks for official document appearance */}
@@ -143,17 +182,17 @@ export default function PrintApplicationPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-[8px] text-gray-500">Type
                  <br />
-                  <span className="text-[8px] font-semibold">P</span>
+                  <span className="text-[8px] font-semibold">{application.processing?.type}</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[8px] text-gray-500">Country Code<br />
-                  <span className="text-[8px] font-semibold">PAK</span>
+                  <span className="text-[8px] font-semibold">{application.processing?.country_code}</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[5px] text-gray-500">Document No.<br/>
-                  <span className="text-[8px] font-semibold">{application.id}</span>
+                  <span className="text-[8px] font-semibold">{application.processing?.document_no}</span>
                   </span>
                 </div>
               </div>
@@ -180,15 +219,19 @@ export default function PrintApplicationPage() {
                   <span className="text-[8px] font-semibold">{application.gender?.toUpperCase() === "MALE" ? "M" : "F"}</span>
                   </span>
                 </div>
-                
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] text-gray-500">Father Name<br/>
+                  <span className="text-[8px] font-semibold">{application.fatherName?.toUpperCase()}</span>
+                  </span>
+                </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[8px] text-gray-500">Nationality<br/>
-                  <span className="text-[8px] font-semibold">PAKISTANI</span>
+                  <span className="text-[8px] font-semibold">{application.processing?.nationality}</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[8px] text-gray-500">Tracking Number<br/>
-                  <span className="text-[8px] font-semibold">{application.id}</span>
+                  <span className="text-[8px] font-semibold">{application.processing?.tracking_id}</span>
                   </span>
                 </div>
                 
@@ -200,7 +243,7 @@ export default function PrintApplicationPage() {
                 
                 <div className="flex items-center gap-2">
                   <span className="text-[8px] text-gray-500">Issuing Authority<br/>
-                  <span className="text-[8px] font-semibold">PAKISTAN</span>
+                  <span className="text-[8px] font-semibold">{application.processing?.nationality}</span>
                   </span>
                 </div>
                 
@@ -221,10 +264,10 @@ export default function PrintApplicationPage() {
             {/* Bottom - Machine Readable Zone (MRZ) */}
             <div className="absolute bottom-[135px] left-[60px] gap-[0.25px]  ">
               <div className="text-[11.5px] font-mono-bold tracking-wider ocr-text leading-tight">
-                {generateOCR1(application)}
+                {application?.processing?.mrz_line1}
               </div>
               <div className="text-[11.5px] font-mono-bold tracking-wider ocr-text leading-tight">
-                {generateOCR2(application)}
+                {application?.processing?.mrz_line2}
               </div>
             </div>
         

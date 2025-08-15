@@ -64,6 +64,11 @@ export default function AgencyDashboard() {
           return app.pendingVerificationAgencies.includes(userAgency)
         }
         
+        // Also show applications where this agency has already completed verification
+        if (app.verificationCompletedAgencies && app.verificationCompletedAgencies.length > 0) {
+          return app.verificationCompletedAgencies.includes(userAgency)
+        }
+        
         // Fallback to legacy filtering (for old applications)
         if (user?.agency) {
           return app.assignedAgency === user?.agency
@@ -125,7 +130,7 @@ export default function AgencyDashboard() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Agency Dashboard</h1>
             <p className="text-gray-600">
-              Review and process applications - {user?.agency}
+              Review and process applications - {user?.fullName}
             </p>
           </div>
           <div className="flex items-center gap-4">

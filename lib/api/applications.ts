@@ -4,7 +4,7 @@ import { Application } from "../types"
 // Transform snake_case API response to camelCase Application
 const transformApplicationData = (apiData: any): Application => {
   return {
-    id: apiData.id,
+    id: apiData.application_id,
     status: apiData.status,
     citizenId: apiData.citizen_id,
     firstName: apiData.first_name,
@@ -77,6 +77,8 @@ const transformApplicationData = (apiData: any): Application => {
     etdExpiryDate: apiData.etd_expiry_date,
     blacklistCheckPassed: apiData.blacklist_check_passed,
     reviewedAt: apiData.reviewed_at,
+    // Processing fields
+    processing: apiData.processing || null,
   }
 }
 
@@ -457,6 +459,79 @@ export const applicationAPI = {
       responseType: 'blob',
     })
     return response.data
+  },
+
+  // Print application with sheet number
+  printApplicationWithSheet: async (trackingId: string, sheetNo: string): Promise<Application> => {
+    console.log('Printing application with sheet number:', { trackingId, sheetNo })
+    
+    const payload = {
+      sheet_no: sheetNo
+    }
+    
+    console.log('Print payload:', payload)
+    
+    try {
+      const response = await apiClient.post(`/applications/${trackingId}/print`, payload)
+      console.log('Print successful:', response.data)
+      return transformApplicationData(response.data)
+    } catch (error: any) {
+      console.error('Print API Error details:', {
+        url: `${apiClient.defaults.baseURL}/applications/${trackingId}/print`,
+        method: 'POST',
+        payload,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      })
+      throw error
+    }
+  },
+
+  // QC Pass API
+  qcPass: async (applicationId: string): Promise<any> => {
+    console.log('QC Pass for application:', applicationId)
+    
+    try {
+      const response = await apiClient.post(`/applications/${applicationId}/qc-pass`, {})
+      console.log('QC Pass successful:', response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('QC Pass API Error details:', {
+        url: `${apiClient.defaults.baseURL}/applications/${applicationId}/qc-pass`,
+        method: 'POST',
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      })
+      throw error
+    }
+  },
+
+  // QC Fail API
+  qcFail: async (applicationId: string, failureReason?: string): Promise<any> => {
+    console.log('QC Fail for application:', { applicationId, failureReason })
+    
+    const payload = failureReason ? { failure_reason: failureReason } : {}
+    
+    try {
+      const response = await apiClient.post(`/applications/${applicationId}/qc-fail`, payload)
+      console.log('QC Fail successful:', response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('QC Fail API Error details:', {
+        url: `${apiClient.defaults.baseURL}/applications/${applicationId}/qc-fail`,
+        method: 'POST',
+        payload,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      })
+      throw error
+    }
   },
 
   // Get all verification attachments for an application

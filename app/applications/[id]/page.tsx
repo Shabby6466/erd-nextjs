@@ -62,7 +62,7 @@ export default function ApplicationViewPage() {
 
   const canPrint = useMemo(() => {
     if (!application) return false
-    return role === "MISSION_OPERATOR" && ["READY_FOR_PRINT", "COMPLETED"].includes(application.status)
+    return role === "MISSION_OPERATOR" && application.status === "READY_FOR_PRINT"
   }, [application, role])
 
 

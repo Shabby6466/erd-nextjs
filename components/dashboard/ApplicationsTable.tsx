@@ -23,12 +23,14 @@ import {
   XCircle, 
   AlertTriangle,
   FileText,
-  Download
+  Download,
+  Shield
 } from "lucide-react"
 import { Application, Region, UserRole } from "@/lib/types"
 import { formatDate, formatStatus, getStatusVariant } from "@/lib/utils/formatting"
 import { showNotification } from "@/lib/utils/notifications"
 import { applicationAPI } from "@/lib/api/applications"
+import QCModal from "./QCModal"
 
 interface ApplicationsTableProps {
   applications: Application[]
@@ -58,6 +60,8 @@ export function ApplicationsTable({
   onSubmitVerification
 }: ApplicationsTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
+  const [qcModalOpen, setQcModalOpen] = useState(false)
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
   const router = useRouter()
 
   const filteredApplications = applications.filter((app) =>
@@ -82,8 +86,29 @@ export function ApplicationsTable({
   }
 
   const canPrint = (application: Application) => {
-    return userRole === 'MISSION_OPERATOR' && 
-           ['READY_FOR_PRINT', 'COMPLETED'].includes(application.status)
+    const canPrintResult = userRole === 'MISSION_OPERATOR' && 
+           application.status === 'READY_FOR_PRINT'
+    
+    console.log('Print button check for application:', application.id, {
+      userRole,
+      status: application.status,
+      canPrint: canPrintResult
+    })
+    
+    return canPrintResult
+  }
+
+  const canPerformQC = (application: Application) => {
+    return application.status === 'READY_FOR_QC'
+  }
+
+  const handleQcClick = (application: Application) => {
+    setSelectedApplication(application)
+    setQcModalOpen(true)
+  }
+
+  const handleQcSuccess = () => {
+    onRefresh?.()
   }
 
   if (isLoading) {
@@ -99,29 +124,30 @@ export function ApplicationsTable({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Applications</CardTitle>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search applications..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-64"
-              />
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Applications</CardTitle>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search applications..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-64"
+                />
+              </div>
+              {userRole === 'MISSION_OPERATOR' && (
+                <Button onClick={() => router.push("/applications/new")}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Application
+                </Button>
+              )}
             </div>
-            {userRole === 'MISSION_OPERATOR' && (
-              <Button onClick={() => router.push("/applications/new")}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Application
-              </Button>
-            )}
           </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -144,7 +170,7 @@ export function ApplicationsTable({
                 <tr key={application.id} className="border-b hover:bg-gray-50">
                   <td className="p-3">
                     <span className="font-mono text-sm">
-                      {application.id.substring(0, 8)}...
+                      {application.id ? application.id.substring(0, 8) + '...' : 'N/A'}
                     </span>
                   </td>
                   <td className="p-3">
@@ -174,9 +200,16 @@ export function ApplicationsTable({
                     </span>
                   </td>
                   <td className="p-3">
-                    <Badge variant={getStatusVariant(application.status)}>
-                      {formatStatus(application.status)}
-                    </Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge variant={getStatusVariant(application.status)}>
+                        {formatStatus(application.status)}
+                      </Badge>
+                      {application.processing && (
+                        <Badge variant="outline" className="text-xs">
+                          Processing: {application.processing.sheet_no || 'No Sheet'}
+                        </Badge>
+                      )}
+                    </div>
                   </td>
               
                   <td className="p-3 text-sm text-gray-500">
@@ -257,6 +290,16 @@ export function ApplicationsTable({
                           >
                             <Printer className="mr-2 h-4 w-4" />
                             Print Document
+                          </DropdownMenuItem>
+                        )}
+
+                        {/* QC Actions - Available when status is READY_FOR_QC */}
+                        {canPerformQC(application) && (
+                          <DropdownMenuItem
+                            onClick={() => handleQcClick(application)}
+                          >
+                            <Shield className="mr-2 h-4 w-4" />
+                            Quality Control
                           </DropdownMenuItem>
                         )}
 
@@ -353,5 +396,17 @@ export function ApplicationsTable({
         </div>
       </CardContent>
     </Card>
+
+    {/* QC Modal */}
+    <QCModal
+      application={selectedApplication}
+      isOpen={qcModalOpen}
+      onClose={() => {
+        setQcModalOpen(false)
+        setSelectedApplication(null)
+      }}
+      onSuccess={handleQcSuccess}
+    />
+  </>
   )
 }

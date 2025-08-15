@@ -1,9 +1,7 @@
 export interface User {
   id: string
   email: string
-  firstName: string
-  lastName: string
-  name: string
+  fullName: string
   role: UserRole
   agency?: string
   region?: string
@@ -12,6 +10,33 @@ export interface User {
 }
 
 export type UserRole = 'ADMIN' | 'MINISTRY' | 'AGENCY' | 'MISSION_OPERATOR'
+
+export interface Processing {
+  tracking_id: string
+  type: string
+  country_code: string
+  nationality: string
+  mrz_line1: string | null
+  mrz_line2: string | null
+  document_no: string | null
+  status: string
+  sheet_no: string | null
+  print_time_stamp: string | null
+  print_user_id: string | null
+  qc_time_stamp: string | null
+  active: boolean
+}
+
+export interface QcFailure {
+  id: string
+  sheet_no: string
+  user_id: string
+  application_id: string
+  qc_timestamp: string
+  failure_reason: string
+  created_at: string
+  updated_at: string
+}
 
 export interface Application {
   id: string
@@ -78,6 +103,8 @@ export interface Application {
   // API data fields
   nadra_api_data?: any
   passport_api_data?: any
+  // Processing fields
+  processing?: Processing
 }
 
 export interface ApplicationAttachment {
@@ -111,6 +138,7 @@ export type ApplicationStatus =
   | 'MINISTRY_REVIEW'
   | 'READY_FOR_PERSONALIZATION'
   | 'READY_FOR_PRINT'
+  | 'READY_FOR_QC'
   | 'APPROVED' 
   | 'REJECTED' 
   | 'COMPLETED'
