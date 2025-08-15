@@ -19,6 +19,7 @@ import { useAuthStore } from "@/lib/stores/auth-store"
 import { DGIPHeaderWithWatermarks } from "@/components/ui/dgip_header_watermarks"
 import ETDApplicationPhotoCard from "@/components/ui/etd_application_photo_card"
 import { DetailForm } from "@/components/forms/DetailForm"
+import SheetSelector from "@/components/operator/SheetSelector"
 
 export function CitizenForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -28,6 +29,7 @@ export function CitizenForm() {
   const [showFullForm, setShowFullForm] = useState(false)
   const [initialCitizenId, setInitialCitizenId] = useState("")
   const [initialImageBase64, setInitialImageBase64] = useState<string>("")
+  const [selectedSheet, setSelectedSheet] = useState<string>("")
   const router = useRouter()
   const { user } = useAuthStore()
 
@@ -403,7 +405,8 @@ export function CitizenForm() {
         passport_photo_url: data.image ? `data:image/jpeg;base64,${data.image}` : undefined,
         other_documents_url: undefined, // Will be set when documents are uploaded
         passport_api_data: passportApiData,
-        nadra_api_data: nadraApiData
+        nadra_api_data: nadraApiData,
+        sheet_number: selectedSheet || undefined
       }
 
       console.log('Sending application data to API:', applicationData)
@@ -698,6 +701,17 @@ export function CitizenForm() {
                 </div> */}
 
               </div>
+
+              {/* Sheet Selection - Only show for operators */}
+              {user?.role === "MISSION_OPERATOR" && (
+                <div className="border-t pt-6">
+                  <SheetSelector
+                    onSheetSelect={setSelectedSheet}
+                    selectedSheet={selectedSheet}
+                    disabled={isLoading}
+                  />
+                </div>
+              )}
 
               {/* Submit Button */}
               <div className="flex justify-end gap-4">
